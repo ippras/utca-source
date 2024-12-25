@@ -19,7 +19,7 @@ use std::{
     path::{Components, Path},
     sync::mpsc::Sender,
 };
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 use url::Url;
 
 // https://api.github.com/repos/ippras/utca/gh-pages/configs/H242_Tamia_Peroxide.toml
@@ -30,13 +30,12 @@ use url::Url;
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages/configs?recursive=true
 
-const URL: &str = "https://api.github.com/repos/ippras-utca/configs/git/trees/main?recursive=true";
-// const GITHUB_TOKEN: &str = env!("GITHUB_TOKEN");
+const URL: &str = "https://api.github.com/repos/ippras/utca-configs/git/trees/main?recursive=true";
+const GITHUB_TOKEN: Option<&str> = option_env!("GITHUB_TOKEN");
 
 /// `github.com tree` renders a nested list of debugger values.
 pub struct Github {
     pub open: bool,
-    pub token: String,
     promise: Promise<Option<Tree>>,
 }
 
@@ -48,18 +47,23 @@ impl Default for Github {
 
 impl Github {
     pub fn new() -> Self {
-        let token = var("GITHUB_TOKEN").unwrap_or_default();
         Self {
             open: false,
-            token,
             promise: Promise::from_ready(None),
         }
     }
 
-    pub fn toggle(&mut self) {
+    pub fn toggle(&mut self, ui: &Ui) {
         self.open ^= true;
         self.promise = if self.open {
-            load_tree(&self.token, URL)
+            let mut github_token =
+                ui.data_mut(|data| data.get_persisted::<String>(Id::new("GithubToken")));
+            github_token = github_token.or(GITHUB_TOKEN.map(ToOwned::to_owned));
+            let Some(github_token) = github_token else {
+                warn!("GITHUB_TOKEN not found");
+                return;
+            };
+            load_tree(&github_token, URL)
         } else {
             Promise::from_ready(None)
         };
@@ -89,15 +93,15 @@ impl Github {
             .open(&mut self.open)
             .show(ctx, |ui| {
                 ui.visuals_mut().collapsing_header_frame = true;
-                ui.collapsing(localize!("settings"), |ui| {
-                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        ui.label(localize!("github token"));
-                        // ui.text_edit_singleline(&mut self.token)
-                        ui.add(TextEdit::singleline(&mut self.token).desired_width(INFINITY));
-                        ctx.request_repaint();
-                    });
-                });
-                ui.separator();
+                // ui.collapsing(localize!("settings"), |ui| {
+                //     Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                //         ui.label(localize!("github token"));
+                //         // ui.text_edit_singleline(&mut self.token)
+                //         ui.add(TextEdit::singleline(&mut self.token).desired_width(INFINITY));
+                //         ctx.request_repaint();
+                //     });
+                // });
+                // ui.separator();
                 ScrollArea::vertical().show(ui, |ui| {
                     if let Some(Some(tree)) = self.promise.ready() {
                         let mut trie = Trie::new();

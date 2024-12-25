@@ -1,25 +1,27 @@
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Memory,
-    Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Ui, Vec2, Visuals,
-    menu::bar, util::cache, vec2, warn_if_debug_build,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Grid, Id, LayerId, Layout,
+    Memory, Order, RichText, ScrollArea, SidePanel, Sides, TextEdit, TextStyle, TopBottomPanel, Ui,
+    Vec2, Visuals, menu::bar, util::cache, vec2, warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
     regular::{
-        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, GRID_FOUR, INFO, PLUS,
+        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, GEAR, GRID_FOUR, INFO, PLUS,
         SIDEBAR_SIMPLE, SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABS, TRASH,
     },
 };
 use egui_tiles::{ContainerKind, Tile, Tree};
-use polars::frame::DataFrame;
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
+    f32::INFINITY,
     fmt::Write,
     mem::{replace, take},
+    process::exit,
     str,
     sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
@@ -132,6 +134,8 @@ impl App {
     fn context(&self, ctx: &Context) {
         // Data channel
         ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
+        // Github token
+        // ctx.data_mut(|data| data.insert_temp(Id::new("GithubToken"), self.channel.0.clone()));
     }
 }
 
@@ -266,24 +270,22 @@ impl App {
                         }
                     }
                     ui.separator();
-                    // let mut toggle = |ui: &mut Ui, pane| {
-                    //     let tile_id = self.tree.tiles.find_pane(&pane);
-                    //     if ui
-                    //         .selectable_label(
-                    //             tile_id.is_some_and(|tile_id| self.tree.is_visible(tile_id)),
-                    //             icon!(pane.icon(), x32),
-                    //         )
-                    //         .on_hover_text(pane.title())
-                    //         .clicked()
-                    //     {
-                    //         if let Some(id) = tile_id {
-                    //             self.tree.tiles.toggle_visibility(id);
-                    //         } else {
-                    //             self.tree.insert_pane(pane);
-                    //         }
-                    //     }
-                    // };
-
+                    ui.menu_button(RichText::new(GEAR).size(SIZE), |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(localize!("github token"));
+                            let id = Id::new("GithubToken");
+                            let mut github_token = ui.data_mut(|data| {
+                                data.get_persisted::<String>(id).unwrap_or_default()
+                            });
+                            if ui.text_edit_singleline(&mut github_token).changed() {
+                                ui.data_mut(|data| data.insert_persisted(id, github_token));
+                            }
+                            if ui.button(RichText::new(TRASH).heading()).clicked() {
+                                ui.data_mut(|data| data.remove::<String>(id));
+                            }
+                        });
+                    });
+                    ui.separator();
                     // Configuration
                     if !self.data.is_empty() {
                         let pane = Pane::Configuration(ConfigurationPane::new(self.data.checked()));
@@ -300,7 +302,7 @@ impl App {
                     }
                     // Load
                     if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
-                        self.github.toggle();
+                        self.github.toggle(ui);
                     }
                     // Save
                     if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {
@@ -414,9 +416,40 @@ impl App {
     fn parse(&mut self, ctx: &Context) {
         for (name, content) in self.channel.1.try_iter() {
             trace!(name, content);
-            match ron::de::from_str(&content) {
+            match ron::de::from_str::<data::FattyAcids>(&content) {
                 Ok(fatty_acids) => {
-                    trace!(?fatty_acids);
+                    error!(?fatty_acids);
+                    let mut lazy_frame = fatty_acids.0.lazy();
+                    lazy_frame = lazy_frame
+                        .with_columns([
+                            col("FA").struct_().field_by_name("Label"),
+                            as_struct(vec![
+                                col("FA").struct_().field_by_name("Carbons"),
+                                col("FA")
+                                    .struct_()
+                                    .field_by_name("Doubles")
+                                    .list()
+                                    .eval(
+                                        as_struct(vec![
+                                            col("").cast(DataType::UInt8).alias("Index"),
+                                            col("").sign().cast(DataType::Int8).alias("Isomerism"),
+                                            lit(1).cast(DataType::UInt8).alias("Unsaturation"),
+                                        ]),
+                                        true,
+                                    )
+                                    .alias("Unsaturated"),
+                            ])
+                            .alias("FattyAcid"),
+                        ])
+                        .select([
+                            col("Label"),
+                            col("FattyAcid"),
+                            col("TAG"),
+                            col("DAG1223"),
+                            col("MAG2"),
+                        ]);
+                    println!("lazy_frame: {}", lazy_frame.collect().unwrap());
+                    exit(0);
                     self.data.push(File { name, fatty_acids });
                     ctx.request_repaint();
                 }
