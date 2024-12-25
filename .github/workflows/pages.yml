@@ -1,0 +1,43 @@
+name: Github Pages
+
+on:
+  workflow_run:
+    branches: [main]
+    workflows: [Rust]
+    types: [completed]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Setup rust # setup rust toolchain for wasm
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        target: wasm32-unknown-unknown
+    - name: Cache rust # cache the rust build artefacts
+      uses: Swatinem/rust-cache@v2
+    - name: Download and install trunk
+      # uses: jetli/trunk-action@v0.5.0
+      run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+    - name: Build
+      run: ./trunk build --release --public-url=$public_url
+      env:
+        public_url: "https://${{ github.repository_owner }}.github.io/utca"
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CONFIGS_READ: ${{ secrets.CONFIGS_READ }}
+      # run: trunk build --release --public-url=/${{ github.event.repository.name }}
+    - name: Deploy
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        folder: dist
+        repository-name: ${{ github.repository_owner }}/utca
+        single-commit: true
+        # ⚠️ Repository permissions:
+        # Contents: Read and write
+        # Pages: Read and write
+        token: ${{ secrets.DEPLOY }}
