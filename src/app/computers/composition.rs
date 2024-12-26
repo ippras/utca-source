@@ -11,7 +11,7 @@ use polars::{lazy::dsl::sum_horizontal, prelude::*};
 use super::{compositions::LazyFrameExt as _, tags::Tags};
 use crate::{
     app::{
-        data::{FattyAcids, File},
+        data::FattyAcids,
         panes::composition::control::{Group, Method, Order, Settings, Sort},
     },
     r#const::relative_atomic_mass::{C, H},
@@ -19,7 +19,7 @@ use crate::{
         composition::{Kind, MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
         polars::ExprExt as _,
     },
-    utils::polars::{DataFrameExt, ExprExt as _, indexed_cols},
+    utils::polars::{DataFrameExt, ExprExt as _},
 };
 
 /// Composition computed

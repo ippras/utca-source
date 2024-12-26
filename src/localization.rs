@@ -110,13 +110,13 @@ mod sources {
     }
 
     pub(super) const EN: &[&str] = &[
-        source!("/ftl/en/fatty_acids.ftl"),
+        source!("/ftl/en/fatty_acids.byrdwell.com.ftl"),
         source!("/ftl/en/properties.ftl"),
         source!("/ftl/en/bars/top.ftl"),
     ];
 
     pub(super) const RU: &[&str] = &[
-        source!("/ftl/ru/fatty_acids.ftl"),
+        source!("/ftl/en/fatty_acids.byrdwell.com.ftl"),
         source!("/ftl/ru/properties.ftl"),
         source!("/ftl/ru/bars/top.ftl"),
     ];

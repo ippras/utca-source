@@ -1,5 +1,6 @@
 use crate::{
-    app::panes::calculation::control::{CHRISTIE, Fraction, From, Settings},
+    app::panes::calculation::control::{Fraction, From, Settings},
+    presets::CHRISTIE,
     special::polars::{ExprExt as _, FATTY_ACIDS_SCHEMA, SchemaExt},
     utils::polars::{ExprExt as _, destruct},
 };

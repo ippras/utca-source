@@ -1,3 +1,4 @@
+use data::{DataFrameExt, Format, save};
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
     Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Grid, Id, LayerId, Layout,
@@ -14,6 +15,7 @@ use egui_phosphor::{
     },
 };
 use egui_tiles::{ContainerKind, Tile, Tree};
+use egui_tiles_ext::{TreeExt as _, VERTICAL};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -29,17 +31,14 @@ use std::{
 use tracing::{debug, error, info, trace};
 
 use self::{
-    data::{Data, File},
+    data::Data,
     panes::{
         Pane, behavior::Behavior, calculation::Pane as CalculationPane,
         composition::Pane as CompositionPane, configuration::Pane as ConfigurationPane,
     },
     windows::{About, Github},
 };
-use crate::{
-    localization::{UiExt, localize},
-    utils::TreeExt,
-};
+use crate::localization::{UiExt, localize};
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
@@ -293,12 +292,12 @@ impl App {
                             .button(icon!(pane.icon(), x32))
                             .on_hover_text(pane.title());
                         if button.clicked() {
-                            self.tree.insert_pane(pane);
+                            self.tree.insert_pane::<VERTICAL>(pane);
                         }
                     }
                     // Create
                     if ui.button(icon!(PLUS, x32)).clicked() {
-                        self.data.files.push(Default::default());
+                        self.data.data_frames.push(Default::default());
                     }
                     // Load
                     if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
@@ -351,7 +350,8 @@ impl App {
         if let Some(data_frame) =
             ctx.data_mut(|data| data.remove_temp::<DataFrame>(Id::new("Calculate")))
         {
-            self.tree.insert_pane(Pane::calculation(data_frame));
+            self.tree
+                .insert_pane::<VERTICAL>(Pane::calculation(data_frame));
         }
     }
 
@@ -359,7 +359,8 @@ impl App {
         if let Some(data_frame) =
             ctx.data_mut(|data| data.remove_temp::<DataFrame>(Id::new("Compose")))
         {
-            self.tree.insert_pane(Pane::composition(data_frame));
+            self.tree
+                .insert_pane::<VERTICAL>(Pane::composition(data_frame));
         }
     }
 
@@ -416,41 +417,44 @@ impl App {
     fn parse(&mut self, ctx: &Context) {
         for (name, content) in self.channel.1.try_iter() {
             trace!(name, content);
-            match ron::de::from_str::<data::FattyAcids>(&content) {
-                Ok(fatty_acids) => {
-                    error!(?fatty_acids);
-                    let mut lazy_frame = fatty_acids.0.lazy();
-                    lazy_frame = lazy_frame
-                        .with_columns([
-                            col("FA").struct_().field_by_name("Label"),
-                            as_struct(vec![
-                                col("FA").struct_().field_by_name("Carbons"),
-                                col("FA")
-                                    .struct_()
-                                    .field_by_name("Doubles")
-                                    .list()
-                                    .eval(
-                                        as_struct(vec![
-                                            col("").cast(DataType::UInt8).alias("Index"),
-                                            col("").sign().cast(DataType::Int8).alias("Isomerism"),
-                                            lit(1).cast(DataType::UInt8).alias("Unsaturation"),
-                                        ]),
-                                        true,
-                                    )
-                                    .alias("Unsaturated"),
-                            ])
-                            .alias("FattyAcid"),
-                        ])
-                        .select([
-                            col("Label"),
-                            col("FattyAcid"),
-                            col("TAG"),
-                            col("DAG1223"),
-                            col("MAG2"),
-                        ]);
-                    println!("lazy_frame: {}", lazy_frame.collect().unwrap());
-                    exit(0);
-                    self.data.push(File { name, fatty_acids });
+            match ron::de::from_str::<DataFrame>(&content) {
+                Ok(data_frame) => {
+                    error!(?data_frame);
+                    println!("name: {} {:?}", data_frame.name(), data_frame.date());
+                    // let mut lazy_frame = fatty_acids.0.lazy();
+                    // lazy_frame = lazy_frame
+                    //     .with_columns([
+                    //         col("FA").struct_().field_by_name("Label"),
+                    //         as_struct(vec![
+                    //             col("FA").struct_().field_by_name("Carbons"),
+                    //             col("FA")
+                    //                 .struct_()
+                    //                 .field_by_name("Doubles")
+                    //                 .list()
+                    //                 .eval(
+                    //                     as_struct(vec![
+                    //                         col("").cast(DataType::UInt8).alias("Index"),
+                    //                         col("").sign().cast(DataType::Int8).alias("Isomerism"),
+                    //                         lit(1).cast(DataType::UInt8).alias("Unsaturation"),
+                    //                     ]),
+                    //                     true,
+                    //                 )
+                    //                 .alias("Unsaturated"),
+                    //         ])
+                    //         .alias("FattyAcid"),
+                    //     ])
+                    //     .select([
+                    //         col("Label"),
+                    //         col("FattyAcid"),
+                    //         col("TAG"),
+                    //         col("DAG1223"),
+                    //         col("MAG2"),
+                    //     ]);
+                    // let data_frame = lazy_frame.with_row_index("Index", None).collect().unwrap();
+                    // println!("data_frame: {data_frame}");
+                    // save("data_frame.utca.ron", Format::Ron, data_frame);
+                    // exit(0);
+                    self.data.push(data_frame);
                     ctx.request_repaint();
                 }
                 Err(error) => error!(%error),

@@ -1,14 +1,7 @@
-use self::{
-    area::Area,
-    control::Control,
-    names::Names,
-    properties::Properties,
-    widgets::{Change, FattyAcidWidget},
-};
+use self::{area::Area, control::Control, names::Names, properties::Properties, widgets::Change};
 use crate::{
-    app::data::{FattyAcids, File},
+    app::{data::FattyAcids, widgets::FattyAcidWidget},
     localization::localize,
-    special::fatty_acid::{COMMON, DisplayWithOptions, FattyAcid},
     utils::{
         polars::DataFrameExt as _,
         ui::{SubscriptedTextFormat, UiExt},
@@ -19,6 +12,10 @@ use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{
     ARROW_FAT_LINE_UP, ARROWS_HORIZONTAL, CALCULATOR, GEAR, MINUS, PENCIL, PLUS,
 };
+use lipid::fatty_acid::{
+    display::{COMMON, DisplayWithOptions as _},
+    polars::DataFrameExt,
+};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::f64::NAN;
@@ -27,12 +24,12 @@ use tracing::error;
 /// Configuration pane
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Pane {
-    pub(crate) source: Vec<File>,
+    pub(crate) source: Vec<FattyAcids>,
     pub(crate) control: Control,
 }
 
 impl Pane {
-    pub(crate) const fn new(data: Vec<File>) -> Self {
+    pub(crate) const fn new(data: Vec<FattyAcids>) -> Self {
         Self {
             source: data,
             control: Control::new(),
@@ -42,14 +39,14 @@ impl Pane {
     pub(crate) fn header(&mut self, ui: &mut Ui) {
         ui.visuals_mut().button_frame = false;
         let selected_text = match self.source.get(0) {
-            Some(file) => &file.name,
+            Some(file) => file.name(),
             None => "",
         };
         ComboBox::from_id_salt(ui.next_auto_id())
             .selected_text(selected_text)
             .show_ui(ui, |ui| {
                 for index in 0..self.source.len() {
-                    ui.selectable_value(&mut self.control.index, index, &self.source[index].name);
+                    ui.selectable_value(&mut self.control.index, index, self.source[index].name());
                 }
             });
         ui.separator();
@@ -73,11 +70,11 @@ impl Pane {
             // FATTY_ACIDS_SCHEMA.names();
             const NAMES: [&str; 4] = ["Label", "Carbons", "Doubles", "Triples"];
             let mut lazy_frame: Option<LazyFrame> = None;
-            for file in &mut self.source {
-                let next = file.fatty_acids.0.clone().lazy().select([
+            for fatty_acids in &mut self.source {
+                let next = fatty_acids.0.clone().lazy().select([
                     col("FA").struct_().field_by_names(["*"]),
                     as_struct(vec![col("TAG"), col("DAG1223"), col("MAG2")])
-                        .alias(file.name.clone()),
+                        .alias(fatty_acids.name().clone()),
                 ]);
                 lazy_frame = Some(if let Some(current) = lazy_frame {
                     current.join(
@@ -113,23 +110,18 @@ impl Pane {
         if self.source.is_empty() {
             return;
         }
-        let file = &self.source[self.control.index];
+        let fatty_acids = &self.source[self.control.index];
         // let Some(entry) = behavior.data.entries.iter_mut().find(|entry| entry.checked) else {
         //     return;
         // };
         let height = ui.spacing().interact_size.y;
         let width = ui.spacing().interact_size.x;
-        let total_rows = file.fatty_acids.height();
-        let fatty_acids = file.fatty_acids.destruct("FA");
-        // let triples = fatty_acids.explode(["Triples"])?;
-        // let triples = triples["Triples"].i8()?;
+        let total_rows = fatty_acids.0.height();
         let labels = fatty_acids.str("Label");
-        let carbons = fatty_acids.u8("Carbons");
-        let doubles = fatty_acids.list("Doubles");
-        let triples = fatty_acids.list("Triples");
-        let tags = file.fatty_acids.f64("TAG");
-        let dags1223 = file.fatty_acids.f64("DAG1223");
-        let mags2 = file.fatty_acids.f64("MAG2");
+        let fatty_acid = fatty_acids.0.fatty_acid();
+        let tags = fatty_acids.0.f64("TAG");
+        let dags1223 = fatty_acids.0.f64("DAG1223");
+        let mags2 = fatty_acids.0.f64("MAG2");
         let mut event = None;
         let mut builder = TableBuilder::new(ui)
             .cell_layout(Layout::centered_and_justified(Direction::LeftToRight));
@@ -186,18 +178,11 @@ impl Pane {
                         // FA
                         row.col(|ui| {
                             let label = labels.get(index).unwrap();
-                            let carbons = carbons.get(index).unwrap();
-                            let doubles = doubles.get_as_series(index).unwrap();
-                            let triples = triples.get_as_series(index).unwrap();
-                            let fatty_acid = &mut FattyAcid {
-                                carbons,
-                                doubles: doubles.i8().unwrap().to_vec_null_aware().left().unwrap(),
-                                triples: triples.i8().unwrap().to_vec_null_aware().left().unwrap(),
-                            };
+                            let mut fatty_acid = fatty_acid.get(index).unwrap().unwrap();
                             let text = if label.is_empty() { "C" } else { label };
                             let title = ui.subscripted_text(
                                 text,
-                                &format!("{:#}", fatty_acid.display(COMMON)),
+                                &format!("{:#}", (&fatty_acid).display(COMMON)),
                                 SubscriptedTextFormat {
                                     widget: true,
                                     ..Default::default()
@@ -206,49 +191,60 @@ impl Pane {
                             let mut response = if self.control.settings.editable {
                                 ui.menu_button(title, |ui| {
                                     let mut label = label.to_owned();
-                                    if let Some(change) =
-                                        FattyAcidWidget::new(&mut label, fatty_acid).ui(ui)
-                                    {
-                                        let (column, value) = match change {
-                                            Change::Label => (
-                                                "Label",
-                                                Scalar::new(
-                                                    DataType::String,
-                                                    AnyValue::StringOwned(label.into()),
-                                                ),
-                                            ),
-                                            Change::Carbons => (
-                                                "Carbons",
-                                                Scalar::new(
-                                                    DataType::UInt8,
-                                                    fatty_acid.carbons.into(),
-                                                ),
-                                            ),
-                                            Change::Doubles => (
-                                                "Doubles",
-                                                Scalar::new(
-                                                    DataType::List(Box::new(DataType::Int8)),
-                                                    AnyValue::List(Series::from_iter(
-                                                        fatty_acid.doubles.clone(),
-                                                    )),
-                                                ),
-                                            ),
-                                            Change::Triples => (
-                                                "Triples",
-                                                Scalar::new(
-                                                    DataType::List(Box::new(DataType::Int8)),
-                                                    AnyValue::List(Series::from_iter(
-                                                        fatty_acid.triples.clone(),
-                                                    )),
-                                                ),
-                                            ),
-                                        };
-                                        event = Some(Event::Set {
-                                            row: index,
-                                            column,
-                                            value,
-                                        })
+                                    let inner_response =
+                                        FattyAcidWidget::new(|| self.source.fatty_acid().get(row))
+                                            .editable(self.settings.editable)
+                                            .hover()
+                                            .ui(ui)?;
+                                    if let Some(value) = inner_response.inner {
+                                        self.source.try_apply(
+                                            "FattyAcid",
+                                            change_fatty_acid(row, &value),
+                                        )?;
                                     }
+                                    // if let Some(change) =
+                                    //     FattyAcidWidget::new(&mut label, || &mut fatty_acid).ui(ui)
+                                    // {
+                                    //     let (column, value) = match change {
+                                    //         Change::Label => (
+                                    //             "Label",
+                                    //             Scalar::new(
+                                    //                 DataType::String,
+                                    //                 AnyValue::StringOwned(label.into()),
+                                    //             ),
+                                    //         ),
+                                    //         Change::Carbons => (
+                                    //             "Carbons",
+                                    //             Scalar::new(
+                                    //                 DataType::UInt8,
+                                    //                 fatty_acid.carbons.into(),
+                                    //             ),
+                                    //         ),
+                                    //         Change::Doubles => (
+                                    //             "Doubles",
+                                    //             Scalar::new(
+                                    //                 DataType::List(Box::new(DataType::Int8)),
+                                    //                 AnyValue::List(Series::from_iter(
+                                    //                     fatty_acid.doubles.clone(),
+                                    //                 )),
+                                    //             ),
+                                    //         ),
+                                    //         Change::Triples => (
+                                    //             "Triples",
+                                    //             Scalar::new(
+                                    //                 DataType::List(Box::new(DataType::Int8)),
+                                    //                 AnyValue::List(Series::from_iter(
+                                    //                     fatty_acid.triples.clone(),
+                                    //                 )),
+                                    //             ),
+                                    //         ),
+                                    //     };
+                                    //     event = Some(Event::Set {
+                                    //         row: index,
+                                    //         column,
+                                    //         value,
+                                    //     })
+                                    // }
                                 })
                                 .response
                             } else {
@@ -374,7 +370,7 @@ impl Pane {
             });
         // Mutable
         if let Some(event) = event {
-            if let Err(error) = event.apply(&mut self.source[self.control.index].fatty_acids) {
+            if let Err(error) = event.apply(&mut self.source[self.control.index]) {
                 error!(%error);
             }
         }

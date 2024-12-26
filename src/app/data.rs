@@ -17,24 +17,24 @@ use std::{
 /// Data
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub(crate) struct Data {
-    pub(crate) files: Vec<CheckableFile>,
+    pub(crate) data_frames: Vec<Checkable>,
 }
 
 impl Data {
-    pub(crate) fn checked(&self) -> Vec<File> {
-        self.files
+    pub(crate) fn checked(&self) -> Vec<FattyAcids> {
+        self.data_frames
             .iter()
-            .filter_map(|checkable| checkable.checked.then_some(checkable.file.clone()))
+            .filter_map(|checkable| checkable.checked.then_some(checkable.fatty_acids.clone()))
             .collect()
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.files.is_empty()
+        self.data_frames.is_empty()
     }
 
-    pub(crate) fn push(&mut self, file: File) {
-        self.files.push(CheckableFile {
-            file,
+    pub(crate) fn push(&mut self, data_frame: DataFrame) {
+        self.data_frames.push(Checkable {
+            fatty_acids: FattyAcids(data_frame),
             checked: true,
         });
     }
@@ -52,8 +52,14 @@ impl Widget for &mut Data {
         let response = ui.heading(localize!("files"));
         let mut remove = None;
         dnd(ui, ui.next_auto_id()).show_vec(
-            &mut self.files,
-            |ui, CheckableFile { checked, file }, handle, state| {
+            &mut self.data_frames,
+            |ui,
+             Checkable {
+                 checked,
+                 fatty_acids,
+             },
+             handle,
+             state| {
                 ui.horizontal(|ui| {
                     Sides::new().show(
                         ui,
@@ -62,12 +68,13 @@ impl Widget for &mut Data {
                                 let _ = ui.label(ARROWS_OUT_CARDINAL);
                             });
                             ui.checkbox(checked, "");
-                            ui.add(Label::new(&file.name).truncate()).on_hover_ui(|ui| {
-                                Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                                    ui.label("Rows");
-                                    ui.label(file.fatty_acids.height().to_string());
+                            ui.add(Label::new(fatty_acids.0.name()).truncate())
+                                .on_hover_ui(|ui| {
+                                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                                        ui.label("Rows");
+                                        ui.label(fatty_acids.0.height().to_string());
+                                    });
                                 });
-                            });
                         },
                         |ui| {
                             if ui.button(TRASH).clicked() {
@@ -79,7 +86,7 @@ impl Widget for &mut Data {
             },
         );
         if let Some(index) = remove {
-            self.files.remove(index);
+            self.data_frames.remove(index);
             ui.ctx().request_repaint();
         }
         response
@@ -88,25 +95,9 @@ impl Widget for &mut Data {
 
 /// Checkable
 #[derive(Clone, Debug, Default, Deserialize, Hash, Serialize)]
-pub(crate) struct CheckableFile {
-    pub(crate) file: File,
-    pub(crate) checked: bool,
-}
-
-/// File
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub(crate) struct File {
-    pub(crate) name: String,
+pub(crate) struct Checkable {
     pub(crate) fatty_acids: FattyAcids,
-}
-
-impl From<DataFrame> for File {
-    fn from(value: DataFrame) -> Self {
-        Self {
-            fatty_acids: FattyAcids(value),
-            ..Default::default()
-        }
-    }
+    pub(crate) checked: bool,
 }
 
 /// Fatty acids
@@ -114,11 +105,14 @@ impl From<DataFrame> for File {
 #[serde(transparent)]
 pub(crate) struct FattyAcids(pub(crate) DataFrame);
 
-impl Eq for FattyAcids {}
+impl FattyAcids {
+    pub(crate) fn name(&self) -> &str {
+        let name = self[0].name();
+        name.split_once(';').map_or(name, |(name, _)| name)
+    }
 
-impl PartialEq for FattyAcids {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.equals(&other.0)
+    pub(crate) fn date(&self) -> Option<&str> {
+        Some(self[0].name().split_once(';')?.1)
     }
 }
 
@@ -213,6 +207,14 @@ impl FattyAcids {
     }
 }
 
+impl Eq for FattyAcids {}
+
+impl PartialEq for FattyAcids {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.equals(&other.0)
+    }
+}
+
 impl Default for FattyAcids {
     fn default() -> Self {
         Self(DataFrame::empty_with_schema(&Schema::from_iter([
@@ -248,17 +250,64 @@ impl Display for FattyAcids {
 
 impl Hash for FattyAcids {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        for fatty_acid in self["FA"].phys_iter() {
-            fatty_acid.hash(state);
+        for series in self.iter() {
+            for value in series.iter() {
+                value.hash(state);
+            }
         }
-        for tag in self["TAG"].phys_iter() {
-            tag.hash(state);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+pub(crate) enum Format {
+    #[default]
+    Bin,
+    Parquet,
+    Ron,
+}
+
+pub(crate) fn save(path: impl AsRef<Path>, format: Format, data_frame: DataFrame) -> Result<()> {
+    println!("data_frame: {:#?}", data_frame.schema());
+    match format {
+        Format::Bin => {
+            let contents = bincode::serialize(&data_frame)?;
+            write(path, contents)?;
         }
-        for dag1223 in self["DAG1223"].phys_iter() {
-            dag1223.hash(state);
+        Format::Parquet => {
+            // let mut file = File::create(path)?;
+            // ParquetWriter::new(&mut file).finish(&mut data_frame)?;
         }
-        for mag2 in self["MAG2"].phys_iter() {
-            mag2.hash(state);
+        Format::Ron => {
+            let file = std::fs::File::create(path)?;
+            ron::ser::to_writer_pretty(
+                file,
+                &data_frame,
+                PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME),
+            )?;
+            // let contents = ron::ser::to_string_pretty(
+            //     &data_frame,
+            //     PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME),
+            // )?;
+            // write(path, contents)?;
         }
+    }
+    Ok(())
+}
+
+/// Extension methods for [`DataFrame`]
+pub(crate) trait DataFrameExt {
+    fn name(&self) -> &str;
+
+    fn date(&self) -> Option<&str>;
+}
+
+impl DataFrameExt for DataFrame {
+    fn name(&self) -> &str {
+        let name = self[0].name();
+        name.split_once(';').map_or(name, |(name, _)| name)
+    }
+
+    fn date(&self) -> Option<&str> {
+        Some(self[0].name().split_once(';')?.1)
     }
 }

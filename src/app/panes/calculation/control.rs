@@ -1,6 +1,7 @@
 use crate::{
     app::{MAX_PRECISION, widgets::FloatValue},
     localization::localize,
+    presets::CHRISTIE,
     special::fatty_acid::{COMMON, DisplayWithOptions, FattyAcid},
     utils::polars::DataFrameExt,
 };
@@ -11,10 +12,6 @@ use egui_phosphor::regular::{BROWSERS, GEAR, MATH_OPERATIONS};
 use polars::frame::DataFrame;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
-
-static FILE: &str = include_str!("../../../../christie.ron");
-pub(crate) static CHRISTIE: LazyLock<DataFrame> =
-    LazyLock::new(|| ron::de::from_str(FILE).expect("deserialize CHRISTIE"));
 
 /// Calculation control
 #[derive(Default, Deserialize, Serialize)]

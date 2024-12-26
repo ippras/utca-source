@@ -19,7 +19,6 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(slice_split_once)]
 #![feature(step_trait)]
-#![feature(vec_into_raw_parts)]
 #![feature(lazy_get)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
@@ -91,6 +90,7 @@ fn main() {
 mod app;
 mod r#const;
 mod localization;
+mod presets;
 mod properties;
 mod special;
 mod utils;
