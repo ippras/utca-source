@@ -1,5 +1,5 @@
 use crate::{
-    app::widgets::FloatValue,
+    app::widgets::FloatWidget,
     localization::localize,
     utils::polars::{ColumnExt, SeriesExt},
 };
@@ -34,7 +34,7 @@ impl Widget for Cell<'_> {
         let value = values.clone().next_back().and_then(|(_, value)| value);
         let mut response = ui.add_enabled(
             !filter,
-            FloatValue::new(value)
+            FloatWidget::new(|| Ok(value))
                 .percent(self.percent)
                 .precision(Some(self.precision))
                 .disable(true),
@@ -71,7 +71,7 @@ impl<'a, T: Iterator<Item = (&'a PlSmallStr, Option<f64>)>> Widget for Values<T>
             .show(ui, |ui| {
                 for (name, value) in self.values {
                     ui.label(name.to_string());
-                    ui.add(FloatValue::new(value).percent(self.percent));
+                    ui.add(FloatWidget::new(|| Ok(value)).percent(self.percent));
                     ui.end_row();
                 }
             })
@@ -109,7 +109,7 @@ impl Widget for Species {
                                     RichText::new("None").color(Color32::RED)
                                 };
                                 ui.label(text);
-                                ui.add(FloatValue::new(value).percent(self.percent));
+                                ui.add(FloatWidget::new(|| Ok(value)).percent(self.percent));
                                 ui.end_row();
                             }
                         }

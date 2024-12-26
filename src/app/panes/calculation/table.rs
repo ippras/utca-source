@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use super::control::{From, Settings};
 use crate::{
-    app::{MARGIN, widgets::FloatValue},
+    app::{MARGIN, widgets::FloatWidget},
     localization::localize,
     special::{
         new_fatty_acid::{COMMON, DisplayWithOptions},
@@ -373,8 +373,7 @@ impl CalculationTable<'_> {
             //     Kind::Mean => self.mean(ui, &["SF", "DAG13"], row, true, false, footer),
             //     _ => self.data(ui, &["SF", "DAG13"], row, true, false, footer),
             // },
-            _ => {}
-            // _ => unreachable!(),
+            _ => {} // _ => unreachable!(),
         }
         // match column {
         //     _ => {}
@@ -504,7 +503,7 @@ impl CalculationTable<'_> {
             values.get(row)
         };
         ui.add(
-            FloatValue::new(value)
+            FloatWidget::new(|| Ok(value))
                 .disable(disable)
                 .percent(percent)
                 .precision(Some(self.settings.precision))
@@ -531,7 +530,7 @@ impl CalculationTable<'_> {
             standard_deviations.get(row)
         };
         ui.add(
-            FloatValue::new(mean)
+            FloatWidget::new(|| Ok(mean))
                 .disable(disable)
                 .percent(percent)
                 .precision(Some(self.settings.precision))
@@ -539,7 +538,7 @@ impl CalculationTable<'_> {
         );
         ui.label("±");
         ui.add(
-            FloatValue::new(standard_deviation)
+            FloatWidget::new(|| Ok(standard_deviation))
                 .disable(disable)
                 .percent(percent)
                 .precision(Some(self.settings.precision))

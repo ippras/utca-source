@@ -49,6 +49,8 @@ polars = { version = "0.45.1", default-features = false, features = [
     "serde-lazy",
     "strings",
     #
+    "cum_agg",
+    # "range",
     "fmt_no_tty",
     "sign",
     # "temporal",

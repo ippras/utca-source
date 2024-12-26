@@ -4,7 +4,7 @@ use polars::prelude::*;
 
 use super::control::Settings;
 use crate::{
-    app::{MARGIN, text::Text, widgets::FloatValue},
+    app::{MARGIN, text::Text, widgets::FloatWidget},
     special::polars::column::ColumnExt as _,
 };
 
@@ -82,14 +82,14 @@ impl<'a> CompositionTable<'a> {
                 let compositions = self.data_frame[index].compositions();
                 let sum = compositions.sum().unwrap();
                 ui.add(
-                    FloatValue::new(Some(sum.mean))
+                    FloatWidget::new(|| Ok(Some(sum.mean)))
                         .percent(settings.percent)
                         .precision(Some(settings.precision))
                         .hover(),
                 );
                 ui.label("±");
                 ui.add(
-                    FloatValue::new(Some(sum.standard_deviation))
+                    FloatWidget::new(|| Ok(Some(sum.standard_deviation)))
                         .percent(settings.percent)
                         .precision(Some(settings.precision))
                         .hover(),
@@ -114,14 +114,14 @@ impl<'a> CompositionTable<'a> {
                     let means = value.field_by_name("Mean").unwrap();
                     let standard_deviations = value.field_by_name("StandardDeviation").unwrap();
                     ui.add(
-                        FloatValue::new(means.f64().unwrap().get(row))
+                        FloatWidget::new(|| Ok(means.f64().unwrap().get(row)))
                             .percent(settings.percent)
                             .precision(Some(settings.precision))
                             .hover(),
                     );
                     ui.label("±");
                     ui.add(
-                        FloatValue::new(standard_deviations.f64().unwrap().get(row))
+                        FloatWidget::new(|| Ok(standard_deviations.f64().unwrap().get(row)))
                             .percent(settings.percent)
                             .precision(Some(settings.precision))
                             .hover(),

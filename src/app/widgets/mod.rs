@@ -1,4 +1,4 @@
-pub(super) use self::{float::FloatValue, new_fatty_acid::FattyAcidWidget};
+pub(super) use self::{float::FloatWidget, new_fatty_acid::FattyAcidWidget};
 
 mod fatty_acid;
 mod float;

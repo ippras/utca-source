@@ -1,5 +1,5 @@
 use crate::{
-    app::{MAX_PRECISION, widgets::FloatValue},
+    app::{MAX_PRECISION, widgets::FloatWidget},
     localization::localize,
     presets::CHRISTIE,
     special::fatty_acid::{COMMON, DisplayWithOptions, FattyAcid},
@@ -61,8 +61,8 @@ impl Control {
                                 triples: triples.i8().unwrap().to_vec_null_aware().left().unwrap(),
                             };
                             ui.label(format!("{:#}", fatty_acid.display(COMMON)));
-                            let value = CHRISTIE.f64("CHRISTIE").get(index);
-                            ui.add(FloatValue::new(value));
+                            FloatWidget::new(move || Ok(CHRISTIE.f64("CHRISTIE").get(index)))
+                                .ui(ui);
                             ui.end_row();
                         }
                     });
