@@ -13,8 +13,7 @@ use crate::{
     },
 };
 use egui::{
-    ComboBox, Direction, Grid, Id, Label, Layout, RichText, ScrollArea, TextEdit, Ui, Widget as _,
-    menu::bar, util::hash, vec2,
+    menu::bar, util::hash, vec2, ComboBox, Direction, Grid, Id, Label, Layout, RichText, ScrollArea, TextEdit, Ui, Widget as _
 };
 use egui_extras::{Column, Size, Strip, StripBuilder, TableBuilder};
 use egui_phosphor::regular::{
@@ -65,77 +64,91 @@ impl Pane {
             ScrollArea::horizontal().show(ui, |ui| {
                 ui.menu_button(RichText::new(TAG).heading(), |ui| {
                     if let Some(index) = self.control.index {
+                        let mut changed = false;
                         let name = self.data_frames[index].0[0].name().clone();
                         let (mut label, mut date) = name
                             .split_once(';')
                             .map_or((name.to_string(), String::new()), |(label, date)| {
                                 (label.to_owned(), date.to_owned())
                             });
-                        let height = ui.style().spacing.interact_size.y;
-                        let text_edit_width = ui.style().spacing.text_edit_width;
-                        let mut changed = false;
-                        StripBuilder::new(ui)
-                            .sizes(Size::exact(height), 2)
-                            .vertical(|mut strip| {
-                                let mut row = |text, value| {
-                                    strip.strip(|builder| {
-                                        builder
-                                            .size(Size::remainder())
-                                            .size(Size::remainder().at_least(text_edit_width))
-                                            .horizontal(|mut strip| {
-                                                strip.cell(|ui| {
-                                                    ui.label(text);
-                                                });
-                                                strip.cell(|ui| {
-                                                    changed |= ui
-                                                        .add(
-                                                            TextEdit::singleline(value)
-                                                                .hint_text(text),
-                                                        )
-                                                        .changed();
-                                                });
-                                            });
-                                    });
-                                };
-                                row("Label", &mut label);
-                                row("Date", &mut date);
-                                // strip.strip(|builder| {
-                                //     builder
-                                //         .size(Size::initial(0.0))
-                                //         .size(Size::remainder().at_least(text_edit_width))
-                                //         .horizontal(|mut strip| {
-                                //             strip.cell(|ui| {
-                                //                 ui.label("Label");
-                                //             });
-                                //             strip.cell(|ui| {
-                                //                 changed |= ui
-                                //                     .add(
-                                //                         TextEdit::singleline(&mut label)
-                                //                             .hint_text("Label"),
-                                //                     )
-                                //                     .changed();
-                                //             });
-                                //         });
-                                // });
-                                // strip.strip(|builder| {
-                                //     builder
-                                //         .size(Size::initial(0.0))
-                                //         .size(Size::remainder().at_least(text_edit_width))
-                                //         .horizontal(|mut strip| {
-                                //             strip.cell(|ui| {
-                                //                 ui.label("Date");
-                                //             });
-                                //             strip.cell(|ui| {
-                                //                 changed |= ui
-                                //                     .add(
-                                //                         TextEdit::singleline(&mut date)
-                                //                             .hint_text("Date"),
-                                //                     )
-                                //                     .changed();
-                                //             });
-                                //         });
-                                // });
-                            });
+                        let width = ui.data_mut(|data| {
+                            *data.get_temp_mut_or_default::<f32>(ui.next_auto_id())
+                        });
+                        ui.horizontal(|ui| {
+                            let height = ui.style().spacing.interact_size.y;
+                            let text_edit_width = ui.style().spacing.text_edit_width;
+                            ui.add_sized(width, Label::new(text));
+                            ui.label("Label12345");
+                            changed |= ui
+                                .add(
+                                    TextEdit::singleline(&mut label)
+                                        .min_size(vec2(0.0, 0.0))
+                                        .hint_text("Label"),
+                                )
+                                .changed();
+                            // StripBuilder::new(ui)
+                            //     .sizes(Size::exact(height), 2)
+                            //     .vertical(|mut strip| {
+                            //         strip.strip(|builder| {
+                            //             builder
+                            //                 .size(Size::relative(0.1))
+                            //                 .size(Size::remainder().at_least(text_edit_width))
+                            //                 .horizontal(|mut strip| {
+                            //                     strip.cell(|ui| {
+                            //                         ui.label("Label");
+                            //                     });
+                            //                     strip.cell(|ui| {
+                            //                         changed |= ui
+                            //                             .add(
+                            //                                 TextEdit::singleline(&mut label)
+                            //                                     .min_size(vec2(0.0, 0.0))
+                            //                                     .hint_text("Label"),
+                            //                             )
+                            //                             .changed();
+                            //                     });
+                            //                 });
+                            //         });
+                            //         strip.strip(|builder| {
+                            //             builder
+                            //                 .size(Size::relative(0.1))
+                            //                 .size(Size::remainder().at_least(text_edit_width))
+                            //                 .horizontal(|mut strip| {
+                            //                     strip.cell(|ui| {
+                            //                         ui.label("Date");
+                            //                     });
+                            //                     strip.cell(|ui| {
+                            //                         changed |= ui
+                            //                             .add(
+                            //                                 TextEdit::singleline(&mut date)
+                            //                                     .hint_text("Date"),
+                            //                             )
+                            //                             .changed();
+                            //                     });
+                            //                 });
+                            //         });
+                            //     });
+                            // Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                            //     ui.label("Label");
+                            //     changed |= ui
+                            //         .add(
+                            //             TextEdit::singleline(&mut label)
+                            //                 .min_size(vec2(0.0, 0.0))
+                            //                 .hint_text("Label"),
+                            //         )
+                            //         .changed();
+                            //     ui.end_row();
+                            //     ui.label("Date");
+                            //     changed |= ui
+                            //         .add(TextEdit::singleline(&mut date).hint_text("Date"))
+                            //         .changed();
+                            // });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Date");
+                            changed |= ui
+                                .add(TextEdit::singleline(&mut date).hint_text("Date"))
+                                .changed();
+                        });
                         if changed {
                             self.data_frames[index]
                                 .0
