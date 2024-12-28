@@ -47,11 +47,11 @@ impl Control {
             .show(ui.ctx(), |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        let fatty_acids = CHRISTIE["FA"].struct_().unwrap();
+                        let fatty_acids = CHRISTIE.1["FA"].struct_().unwrap();
                         let carbons = fatty_acids.field_by_name("Carbons").unwrap();
                         let doubles = fatty_acids.field_by_name("Doubles").unwrap();
                         let triples = fatty_acids.field_by_name("Triples").unwrap();
-                        for index in 0..CHRISTIE.height() {
+                        for index in 0..CHRISTIE.1.height() {
                             let carbons = carbons.u8().unwrap().get(index).unwrap();
                             let doubles = doubles.list().unwrap().get_as_series(index).unwrap();
                             let triples = triples.list().unwrap().get_as_series(index).unwrap();
@@ -61,7 +61,7 @@ impl Control {
                                 triples: triples.i8().unwrap().to_vec_null_aware().left().unwrap(),
                             };
                             ui.label(format!("{:#}", fatty_acid.display(COMMON)));
-                            FloatWidget::new(move || Ok(CHRISTIE.f64("CHRISTIE").get(index)))
+                            FloatWidget::new(move || Ok(CHRISTIE.1.f64("CHRISTIE").get(index)))
                                 .ui(ui);
                             ui.end_row();
                         }

@@ -169,7 +169,7 @@ fn christie(lazy_frame: LazyFrame) -> LazyFrame {
     lazy_frame
         .unnest(["FA"])
         .join(
-            CHRISTIE.clone().lazy().unnest(["FA"]),
+            CHRISTIE.1.clone().lazy().unnest(["FA"]),
             &[col("Carbons"), col("Doubles"), col("Triples")],
             &[col("Carbons"), col("Doubles"), col("Triples")],
             JoinArgs::new(JoinType::Left),

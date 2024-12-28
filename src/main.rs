@@ -28,6 +28,9 @@ use app::App;
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> eframe::Result<()> {
+    use presets::CHRISTIE;
+    println!("CHRISTIE: {:?}, {}", CHRISTIE.0, CHRISTIE.1);
+
     unsafe { std::env::set_var("POLARS_FMT_MAX_COLS", "256") };
     // unsafe { std::env::set_var("POLARS_FMT_MAX_ROWS", "32") };
     unsafe { std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256") };

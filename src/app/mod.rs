@@ -419,41 +419,7 @@ impl App {
             trace!(name, content);
             match ron::de::from_str::<DataFrame>(&content) {
                 Ok(data_frame) => {
-                    error!(?data_frame);
-                    println!("name: {} {:?}", data_frame.name(), data_frame.date());
-                    // let mut lazy_frame = fatty_acids.0.lazy();
-                    // lazy_frame = lazy_frame
-                    //     .with_columns([
-                    //         col("FA").struct_().field_by_name("Label"),
-                    //         as_struct(vec![
-                    //             col("FA").struct_().field_by_name("Carbons"),
-                    //             col("FA")
-                    //                 .struct_()
-                    //                 .field_by_name("Doubles")
-                    //                 .list()
-                    //                 .eval(
-                    //                     as_struct(vec![
-                    //                         col("").cast(DataType::UInt8).alias("Index"),
-                    //                         col("").sign().cast(DataType::Int8).alias("Isomerism"),
-                    //                         lit(1).cast(DataType::UInt8).alias("Unsaturation"),
-                    //                     ]),
-                    //                     true,
-                    //                 )
-                    //                 .alias("Unsaturated"),
-                    //         ])
-                    //         .alias("FattyAcid"),
-                    //     ])
-                    //     .select([
-                    //         col("Label"),
-                    //         col("FattyAcid"),
-                    //         col("TAG"),
-                    //         col("DAG1223"),
-                    //         col("MAG2"),
-                    //     ]);
-                    // let data_frame = lazy_frame.with_row_index("Index", None).collect().unwrap();
-                    // println!("data_frame: {data_frame}");
-                    // save("data_frame.utca.ron", Format::Ron, data_frame);
-                    // exit(0);
+                    trace!(?data_frame);
                     self.data.push(data_frame);
                     ctx.request_repaint();
                 }
