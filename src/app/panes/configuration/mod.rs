@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use self::{
     control::Control,
     names::Names,
@@ -12,6 +14,7 @@ use crate::{
         ui::{SubscriptedTextFormat, UiExt},
     },
 };
+use anyhow::Result;
 use egui::{
     ComboBox, Direction, Grid, Id, Label, Layout, RichText, ScrollArea, TextEdit, Ui, Widget as _,
     menu::bar, util::hash, vec2,
@@ -22,7 +25,9 @@ use egui_phosphor::regular::{
     PLUS, TAG, TRASH,
 };
 use lipid::fatty_acid::display::{COMMON, DisplayWithOptions as _};
+use maplit::btreemap;
 use polars::prelude::*;
+// use polars_io::{SerWriter, ipc::IpcWriter};
 use ron::{extensions::Extensions, ser::PrettyConfig};
 use serde::{Deserialize, Serialize};
 use tracing::error;
@@ -99,42 +104,6 @@ impl Pane {
                                 };
                                 row("Label", &mut label);
                                 row("Date", &mut date);
-                                // strip.strip(|builder| {
-                                //     builder
-                                //         .size(Size::initial(0.0))
-                                //         .size(Size::remainder().at_least(text_edit_width))
-                                //         .horizontal(|mut strip| {
-                                //             strip.cell(|ui| {
-                                //                 ui.label("Label");
-                                //             });
-                                //             strip.cell(|ui| {
-                                //                 changed |= ui
-                                //                     .add(
-                                //                         TextEdit::singleline(&mut label)
-                                //                             .hint_text("Label"),
-                                //                     )
-                                //                     .changed();
-                                //             });
-                                //         });
-                                // });
-                                // strip.strip(|builder| {
-                                //     builder
-                                //         .size(Size::initial(0.0))
-                                //         .size(Size::remainder().at_least(text_edit_width))
-                                //         .horizontal(|mut strip| {
-                                //             strip.cell(|ui| {
-                                //                 ui.label("Date");
-                                //             });
-                                //             strip.cell(|ui| {
-                                //                 changed |= ui
-                                //                     .add(
-                                //                         TextEdit::singleline(&mut date)
-                                //                             .hint_text("Date"),
-                                //                     )
-                                //                     .changed();
-                                //             });
-                                //         });
-                                // });
                             });
                         if changed {
                             self.data_frames[index]
@@ -204,9 +173,9 @@ impl Pane {
                     .on_hover_text(&self.control.settings.label)
                     .clicked()
                 {
-                    // if let Err(error) = self.save() {
-                    //     error!(%error);
-                    // }
+                    if let Err(error) = self.save() {
+                        error!(%error);
+                    }
                 }
                 ui.separator();
                 // Calculation
@@ -222,7 +191,7 @@ impl Pane {
                         let next = fatty_acids.0.clone().lazy().select([
                             col("FA").struct_().field_by_names(["*"]),
                             as_struct(vec![col("TAG"), col("DAG1223"), col("MAG2")])
-                                .alias(fatty_acids.name().clone()),
+                                .alias(fatty_acids.name()),
                         ]);
                         lazy_frame = Some(if let Some(current) = lazy_frame {
                             current.join(
@@ -590,14 +559,21 @@ impl Pane {
         Ok(())
     }
 
-    // fn save(&self) -> Result<()> {
-    //     let contents = ron::ser::to_string_pretty(
-    //         &self.data_frame,
-    //         PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_NEWTYPES),
-    //     )?;
-    //     std::fs::write(format!("{}.hmf.ron", self.control.settings.label), contents)?;
-    //     Ok(())
-    // }
+    fn save(&mut self) -> Result<()> {
+        if let Some(index) = self.control.index {
+            let data_frame = &mut self.data_frames[index];
+            let mut file = File::create("data_frame.utca.ipc")?;
+            let mut writer = IpcWriter::new(&mut file);
+            let metadata = btreemap! {
+                "Name".into() => "Name".into(),
+                "CreatedBy".into() => "Created by".into(),
+                "Version".into() => "0.0.1".into(),
+            };
+            writer.set_custom_schema_metadata(Arc::new(metadata));
+            writer.finish(&mut data_frame.0)?;
+        }
+        Ok(())
+    }
 
     pub(super) fn hash(&self) -> u64 {
         hash(&self.data_frames)

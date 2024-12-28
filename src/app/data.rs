@@ -118,9 +118,9 @@ impl FattyAcids {
 
 impl FattyAcids {
     pub(crate) fn save(&self, path: impl AsRef<Path>) -> Result<()> {
-        let value = self.0.select(["FA", "TAG", "DAG1223", "MAG2"]);
+        let value = self.0.select(["FA", "TAG", "DAG1223", "MAG2"])?;
         let contents = ron::ser::to_string_pretty(
-            &value?,
+            &value,
             PrettyConfig::new().extensions(Extensions::IMPLICIT_SOME | Extensions::UNWRAP_NEWTYPES),
         )?;
         write(path, contents)?;
