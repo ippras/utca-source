@@ -1,4 +1,4 @@
-use super::{compositions::LazyFrameExt as _, tags::Triacylglycerol};
+use super::compositions::LazyFrameExt as _;
 use crate::{
     app::panes::composition::control::{Filter, Group, Method, Order, Settings, Sort},
     r#const::relative_atomic_mass::{C, H},
@@ -144,7 +144,6 @@ impl Computer {
                 lazy_frame = sort(lazy_frame, key.settings);
                 // Index
                 lazy_frame = lazy_frame.with_row_index("Index", None);
-                println!("lazy_frame 0: {}", lazy_frame.clone().collect().unwrap());
                 lazy_frame.collect()
             }
             None => {
@@ -173,11 +172,7 @@ impl Computer {
     //         u3: 0.0,
     //     }
     // }
-    fn gunstone(
-        &mut self,
-        data_frame: &DataFrame,
-        settings: &Settings,
-    ) -> PolarsResult<Triacylglycerol> {
+    fn gunstone(&mut self, data_frame: &DataFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
         let lazy_frame = data_frame
             .clone()
             .lazy()

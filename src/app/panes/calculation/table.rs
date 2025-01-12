@@ -1,7 +1,7 @@
 use super::control::{From, Settings};
 use crate::{
     app::{
-        MARGIN,
+        panes::MARGIN,
         widgets::{FattyAcidWidget, FloatWidget},
     },
     localization::localize,

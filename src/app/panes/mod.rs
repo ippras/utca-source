@@ -1,9 +1,11 @@
 use crate::localization::localize;
-use egui::{Response, Sense, Ui};
+use egui::{Response, Sense, Ui, Vec2, vec2};
 use egui_phosphor::regular::{CALCULATOR, INTERSECT_THREE, NOTE_PENCIL};
 use polars::frame::DataFrame;
 use serde::{Deserialize, Serialize};
 use utca::metadata::MetaDataFrame;
+
+const MARGIN: Vec2 = vec2(4.0, 0.0);
 
 /// Central pane
 #[derive(Deserialize, Serialize)]

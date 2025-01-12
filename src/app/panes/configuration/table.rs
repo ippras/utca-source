@@ -1,6 +1,6 @@
 use super::control::Settings;
 use crate::app::{
-    MARGIN,
+    panes::MARGIN,
     widgets::{FattyAcidWidget, FloatWidget},
 };
 use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};

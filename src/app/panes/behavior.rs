@@ -16,7 +16,7 @@ impl egui_tiles::Behavior<Pane> for Behavior {
 
     fn pane_ui(&mut self, ui: &mut Ui, tile_id: TileId, pane: &mut Pane) -> UiResponse {
         Frame::none()
-            .inner_margin(Margin::symmetric(4.0, 2.0))
+            .inner_margin(Margin::symmetric(4.0, 6.0))
             .show(ui, |ui| {
                 let response = Sides::new()
                     .show(

@@ -42,7 +42,7 @@ impl Control {
             .default_pos(ui.next_widget_position())
             .open(&mut self.open)
             .show(ui.ctx(), |ui| {
-                self.unconfirmed.ui(ui);
+                self.unconfirmed.show(ui);
                 let enabled = hash(&self.confirmed) != hash(&self.unconfirmed);
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.horizontal(|ui| {
@@ -103,7 +103,7 @@ impl Settings {
 }
 
 impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) {
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
         Grid::new("composition").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));

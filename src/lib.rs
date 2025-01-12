@@ -3,7 +3,6 @@ mod test {
     use super::{metadata::Metadata, *};
     use anyhow::Result;
     use chrono::NaiveDate;
-    use maplit::btreemap;
     use metadata::{DATE_FORMAT, IpcReaderExt as _};
     use polars::prelude::*;
     use semver::Version;
@@ -33,7 +32,7 @@ mod test {
 
     #[test]
     fn read_ipc() -> Result<()> {
-        let path = "Lunaria rediviva 1.1.0.utca.ipc";
+        let path = "Lunaria rediviva___ 2.1.0.utca.ipc";
         // let path = "Christie.0.1.0.ipc";
         // let path = Path::new(
         //     r#"C:\Users\9\git\ippras\utca-configs\LunariaRediviva\2024-01-24\LunariaRediviva.1.1.utca.ipc"#,

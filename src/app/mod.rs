@@ -1,26 +1,22 @@
 use self::{
     data::Data,
-    panes::{
-        Pane, behavior::Behavior, calculation::Pane as CalculationPane,
-        composition::Pane as CompositionPane, configuration::Pane as ConfigurationPane,
-    },
+    panes::{Pane, behavior::Behavior, configuration::Pane as ConfigurationPane},
     windows::{About, Github},
 };
 use crate::localization::{UiExt, localize};
-use chrono::{Local, NaiveDate};
-use data::{Format, save};
+use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Grid, Id, LayerId, Layout,
-    Memory, Order, RichText, ScrollArea, SidePanel, Sides, TextEdit, TextStyle, TopBottomPanel, Ui,
-    Vec2, Visuals, menu::bar, util::cache, vec2, warn_if_debug_build,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Memory,
+    Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
+    util::IdTypeMap, warn_if_debug_build,
 };
-use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
+use egui_ext::{HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
     regular::{
-        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, GEAR, GRID_FOUR, INFO, PLUS,
+        ARROWS_CLOCKWISE, CLOUD_ARROW_DOWN, FLOPPY_DISK, GEAR, GRID_FOUR, INFO, PLUS,
         SIDEBAR_SIMPLE, SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABLE, TABS, TRASH,
     },
 };
@@ -28,27 +24,22 @@ use egui_tiles::{ContainerKind, Tile, Tree};
 use egui_tiles_ext::{TreeExt as _, VERTICAL};
 use panes::configuration::SCHEMA;
 use polars::prelude::*;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::BorrowMut,
-    f32::INFINITY,
     fmt::Write,
     io::Cursor,
-    mem::{replace, take},
-    process::exit,
     str,
     sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
 };
-use tracing::{debug, error, info, trace};
-use utca::metadata::{IpcReaderExt, MetaDataFrame, Metadata};
+use tracing::{error, info, trace};
+use utca::metadata::{MetaDataFrame, Metadata};
 
-const MARGIN: Vec2 = vec2(4.0, 0.0);
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
 const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
-const SIZE: f32 = 32.0;
+const ICON_SIZE: f32 = 32.0;
 
 // const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
 
@@ -127,8 +118,6 @@ impl App {
     fn context(&self, ctx: &Context) {
         // Data channel
         ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
-        // Github token
-        // ctx.data_mut(|data| data.insert_temp(Id::new("GithubToken"), self.channel.0.clone()));
     }
 }
 
@@ -190,16 +179,16 @@ impl App {
                     // Left panel
                     ui.toggle_value(
                         &mut self.left_panel,
-                        RichText::new(SIDEBAR_SIMPLE).size(SIZE),
+                        RichText::new(SIDEBAR_SIMPLE).size(ICON_SIZE),
                     )
                     .on_hover_text(localize!("LeftPanel"));
                     ui.separator();
                     // Light/Dark
-                    ui.light_dark_button(SIZE);
+                    ui.light_dark_button(ICON_SIZE);
                     ui.separator();
-                    // Reset
+                    // Reset app
                     if ui
-                        .button(RichText::new(TRASH).size(SIZE))
+                        .button(RichText::new(TRASH).size(ICON_SIZE))
                         .on_hover_text(localize!("reset_application"))
                         .clicked()
                     {
@@ -207,19 +196,31 @@ impl App {
                         self.context(ctx);
                     }
                     ui.separator();
+                    // Reset app
                     if ui
-                        .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
+                        .button(RichText::new(ARROWS_CLOCKWISE).size(ICON_SIZE))
                         .on_hover_text(localize!("reset_gui"))
                         .clicked()
                     {
+                        let mut data = IdTypeMap::default();
+                        let caches = ui.memory_mut(|memory| {
+                            // Github token
+                            let id = Id::new("GithubToken");
+                            if let Some(github_token) = memory.data.get_persisted::<String>(id) {
+                                data.insert_persisted(id, github_token)
+                            }
+                            // Cache
+                            memory.caches.clone()
+                        });
                         ui.memory_mut(|memory| {
-                            memory.caches = replace(memory, Default::default()).caches;
+                            memory.caches = caches;
+                            memory.data = data;
                         });
                         self.context(ctx);
                     }
                     ui.separator();
                     if ui
-                        .button(RichText::new(SQUARE_SPLIT_VERTICAL).size(SIZE))
+                        .button(RichText::new(SQUARE_SPLIT_VERTICAL).size(ICON_SIZE))
                         .on_hover_text(localize!("vertical"))
                         .clicked()
                     {
@@ -230,7 +231,7 @@ impl App {
                         }
                     }
                     if ui
-                        .button(RichText::new(SQUARE_SPLIT_HORIZONTAL).size(SIZE))
+                        .button(RichText::new(SQUARE_SPLIT_HORIZONTAL).size(ICON_SIZE))
                         .on_hover_text(localize!("horizontal"))
                         .clicked()
                     {
@@ -241,7 +242,7 @@ impl App {
                         }
                     }
                     if ui
-                        .button(RichText::new(GRID_FOUR).size(SIZE))
+                        .button(RichText::new(GRID_FOUR).size(ICON_SIZE))
                         .on_hover_text(localize!("grid"))
                         .clicked()
                     {
@@ -252,7 +253,7 @@ impl App {
                         }
                     }
                     if ui
-                        .button(RichText::new(TABS).size(SIZE))
+                        .button(RichText::new(TABS).size(ICON_SIZE))
                         .on_hover_text(localize!("tabs"))
                         .clicked()
                     {
@@ -263,8 +264,8 @@ impl App {
                         }
                     }
                     ui.separator();
-                    ui.menu_button(RichText::new(GEAR).size(SIZE), |ui| {
-                        Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                    ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
+                        ui.horizontal(|ui| {
                             ui.label(localize!("github token"));
                             let id = Id::new("GithubToken");
                             let mut github_token = ui.data_mut(|data| {
@@ -276,8 +277,8 @@ impl App {
                             if ui.button(RichText::new(TRASH).heading()).clicked() {
                                 ui.data_mut(|data| data.remove::<String>(id));
                             }
-                            ui.end_row();
-
+                        });
+                        ui.horizontal(|ui| {
                             ui.label(localize!("christie"));
                             let pane = Pane::christie();
                             let tile_id = self.tree.tiles.find_pane(&pane);
@@ -298,18 +299,19 @@ impl App {
                     ui.separator();
                     // Configuration
                     if !self.data.is_empty() {
-                        let pane = Pane::Configuration(ConfigurationPane::new(self.data.checked()));
-                        let button = ui
-                            .button(RichText::new(pane.icon()).size(SIZE))
-                            .on_hover_text(pane.title());
-                        if button.clicked() {
+                        if ui
+                            .button(RichText::new(ConfigurationPane::icon()).size(ICON_SIZE))
+                            .clicked()
+                        {
+                            let pane =
+                                Pane::Configuration(ConfigurationPane::new(self.data.checked()));
                             self.tree.insert_pane::<VERTICAL>(pane);
                         }
                     }
                     // Create
-                    if ui.button(RichText::new(PLUS).size(SIZE)).clicked() {
+                    if ui.button(RichText::new(PLUS).size(ICON_SIZE)).clicked() {
                         let data_frame = DataFrame::empty_with_schema(&SCHEMA);
-                        self.data.push(MetaDataFrame {
+                        self.data.add(MetaDataFrame {
                             meta: Metadata {
                                 version: None,
                                 name: "Untitled".to_owned(),
@@ -322,22 +324,25 @@ impl App {
                     }
                     // Load
                     if ui
-                        .button(RichText::new(CLOUD_ARROW_DOWN).size(SIZE))
+                        .button(RichText::new(CLOUD_ARROW_DOWN).size(ICON_SIZE))
                         .clicked()
                     {
                         self.github.toggle(ui);
                     }
-                    // Save
-                    if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
-                        if let Err(error) = self.data.save() {
-                            error!(%error);
-                        }
-                    }
+                    // // Save
+                    // if ui
+                    //     .button(RichText::new(FLOPPY_DISK).size(ICON_SIZE))
+                    //     .clicked()
+                    // {
+                    //     if let Err(error) = self.data.save() {
+                    //         error!(%error);
+                    //     }
+                    // }
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // About
                         if ui
-                            .button(RichText::new(INFO).size(SIZE))
+                            .button(RichText::new(INFO).size(ICON_SIZE))
                             .on_hover_text("About window")
                             .clicked()
                         {
@@ -441,7 +446,7 @@ impl App {
             match MetaDataFrame::read(Cursor::new(bytes)) {
                 Ok(frame) => {
                     trace!(?frame);
-                    self.data.push(frame);
+                    self.data.add(frame);
                     ctx.request_repaint();
                 }
                 Err(error) => error!(%error),
@@ -532,7 +537,6 @@ impl eframe::App for App {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn Storage) {
         set_value(storage, APP_KEY, self);
-        // set_value(storage, APP_KEY, &Self::default());
     }
 
     /// Called each time the UI needs repainting, which may be many times per

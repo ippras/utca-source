@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Control {
     pub(crate) settings: Settings,
-    pub(crate) index: Option<usize>,
+    pub(crate) index: usize,
     pub(crate) open: bool,
 }
 
@@ -15,7 +15,7 @@ impl Control {
     pub(crate) const fn new() -> Self {
         Self {
             settings: Settings::new(),
-            index: None,
+            index: 0,
             open: false,
         }
     }
@@ -25,7 +25,7 @@ impl Control {
             .id(ui.next_auto_id())
             .default_pos(ui.next_widget_position())
             .open(&mut self.open)
-            .show(ui.ctx(), |ui| self.settings.ui(ui));
+            .show(ui.ctx(), |ui| self.settings.show(ui));
     }
 }
 
@@ -57,7 +57,7 @@ impl Settings {
         }
     }
 
-    pub(crate) fn ui(&mut self, ui: &mut Ui) {
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
         Grid::new("configuration").show(ui, |ui| {
             // Precision
             ui.label(localize!("precision"));

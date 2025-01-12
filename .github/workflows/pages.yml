@@ -39,5 +39,4 @@ jobs:
         single-commit: true
         # ⚠️ Repository permissions:
         # Contents: Read and write
-        # Pages: Read and write
         token: ${{ secrets.DEPLOY }}

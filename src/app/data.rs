@@ -37,21 +37,14 @@ impl Data {
         self.frames.is_empty()
     }
 
-    pub(crate) fn push(&mut self, frame: MetaDataFrame) {
+    pub(crate) fn add(&mut self, frame: MetaDataFrame) {
         self.frames.push(frame);
         self.checked.push(false);
     }
 
-    pub(crate) fn remove(&mut self, index: usize) {
+    pub(crate) fn delete(&mut self, index: usize) {
         self.frames.remove(index);
         self.checked.remove(index);
-    }
-
-    pub(crate) fn save(&self) -> Result<()> {
-        // for (index, entry) in self.checked() {
-        //     entry.fatty_acids.save(format!("{index}.utca.ron"))?;
-        // }
-        Ok(())
     }
 }
 
@@ -89,7 +82,7 @@ impl Widget for &mut Data {
             });
         });
         if let Some(index) = remove {
-            self.remove(index);
+            self.delete(index);
             ui.ctx().request_repaint();
         }
         response

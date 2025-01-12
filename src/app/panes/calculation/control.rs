@@ -38,7 +38,7 @@ impl Control {
             .default_pos(ui.next_widget_position())
             .open(&mut self.open)
             .show(ui.ctx(), |ui| {
-                self.settings.ui(ui);
+                self.settings.show(ui);
             });
         // Christie
         Window::new(format!("{MATH_OPERATIONS} Christie"))
@@ -108,7 +108,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) {
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
         Grid::new("calculation").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));

@@ -14,10 +14,10 @@ pub const DATE_FORMAT: &str = "%Y-%m-%d";
 /// Metadata
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Metadata {
-    pub version: Option<Version>,
     pub name: String,
     pub description: String,
     pub authors: Vec<String>,
+    pub version: Option<Version>,
     pub date: Option<NaiveDate>,
 }
 
@@ -35,10 +35,6 @@ impl TryFrom<&BTreeMap<PlSmallStr, PlSmallStr>> for Metadata {
 
     fn try_from(value: &BTreeMap<PlSmallStr, PlSmallStr>) -> Result<Self> {
         Ok(Self {
-            version: value
-                .get("version")
-                .map(|version| Version::parse(version))
-                .transpose()?,
             name: value
                 .get("name")
                 .map_or_else(String::new, ToString::to_string),
@@ -46,8 +42,12 @@ impl TryFrom<&BTreeMap<PlSmallStr, PlSmallStr>> for Metadata {
                 .get("description")
                 .map_or_else(String::new, ToString::to_string),
             authors: value.get("authors").map_or_else(Vec::new, |authors| {
-                authors.split(", ").map(ToOwned::to_owned).collect()
+                authors.split(",").map(ToOwned::to_owned).collect()
             }),
+            version: value
+                .get("version")
+                .map(|version| Version::parse(version))
+                .transpose()?,
             date: value
                 .get("date")
                 .map(|date| NaiveDate::parse_from_str(date, DATE_FORMAT))
@@ -59,12 +59,12 @@ impl TryFrom<&BTreeMap<PlSmallStr, PlSmallStr>> for Metadata {
 impl From<Metadata> for BTreeMap<PlSmallStr, PlSmallStr> {
     fn from(value: Metadata) -> Self {
         let mut metadata = BTreeMap::new();
+        metadata.insert("name".into(), value.name.into());
+        metadata.insert("description".into(), value.description.into());
+        metadata.insert("authors".into(), value.authors.join(",").into());
         if let Some(version) = value.version {
             metadata.insert("version".into(), version.to_string().into());
         }
-        metadata.insert("name".into(), value.name.into());
-        metadata.insert("description".into(), value.description.into());
-        metadata.insert("authors".into(), value.authors.join(", ").into());
         if let Some(date) = value.date {
             metadata.insert("date".into(), date.format(DATE_FORMAT).to_string().into());
         }

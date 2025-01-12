@@ -59,11 +59,12 @@ impl Pane {
         }
     }
 
+    pub(crate) const fn icon() -> &'static str {
+        NOTE_PENCIL
+    }
+
     pub(crate) fn title(&self) -> String {
-        match self.control.index {
-            Some(index) => self.frames[index].meta.title(),
-            None => localize!("configuration"),
-        }
+        self.frames[self.control.index].meta.title()
     }
 
     fn header_content(&mut self, ui: &mut Ui) -> Response {
@@ -75,12 +76,13 @@ impl Pane {
             .on_hover_text(format!("{:x}", self.hash()))
             .on_hover_cursor(CursorIcon::Grab);
         ui.separator();
+        // List
         ui.menu_button(RichText::new(LIST).heading(), |ui| {
             for index in 0..self.frames.len() {
                 if ui
                     .selectable_value(
                         &mut self.control.index,
-                        Some(index),
+                        index,
                         self.frames[index].meta.title(),
                     )
                     .clicked()
@@ -92,42 +94,46 @@ impl Pane {
         .response
         .on_hover_text(localize!("list"));
         ui.separator();
+        // Resize
         ui.toggle_value(
             &mut self.control.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
+        // Edit
         ui.toggle_value(
             &mut self.control.settings.editable,
             RichText::new(PENCIL).heading(),
         )
         .on_hover_text(localize!("edit"));
         // Clear
-        ui.add_enabled_ui(!self.frames.is_empty(), |ui| {
-            if ui
-                .button(RichText::new(ERASER).heading())
-                .on_hover_text(localize!("clear"))
-                .clicked()
-            {
-                if let Some(index) = self.control.index {
-                    let data_frame = &mut self.frames[index].data;
+        ui.add_enabled_ui(
+            self.control.settings.editable && self.frames[self.control.index].data.height() > 0,
+            |ui| {
+                if ui
+                    .button(RichText::new(ERASER).heading())
+                    .on_hover_text(localize!("clear"))
+                    .clicked()
+                {
+                    let data_frame = &mut self.frames[self.control.index].data;
                     *data_frame = data_frame.clear();
                 }
-            }
-        });
+            },
+        );
         // Delete
-        ui.add_enabled_ui(!self.frames.is_empty(), |ui| {
-            if ui
-                .button(RichText::new(TRASH).heading())
-                .on_hover_text(localize!("delete"))
-                .clicked()
-            {
-                if let Some(index) = self.control.index {
-                    self.frames.remove(index);
-                    self.control.index = None;
+        ui.add_enabled_ui(
+            self.control.settings.editable && self.frames.len() > 1,
+            |ui| {
+                if ui
+                    .button(RichText::new(TRASH).heading())
+                    .on_hover_text(localize!("delete"))
+                    .clicked()
+                {
+                    self.frames.remove(self.control.index);
+                    self.control.index = 0;
                 }
-            }
-        });
+            },
+        );
         ui.separator();
         // Settings
         ui.toggle_value(&mut self.control.open, RichText::new(GEAR).heading())
@@ -151,11 +157,12 @@ impl Pane {
             .on_hover_text(localize!("calculation"))
             .clicked()
         {
-            if let Some(index) = self.control.index {
-                ui.data_mut(|data| {
-                    data.insert_temp(Id::new("Calculate"), (self.frames.clone(), index));
-                });
-            }
+            ui.data_mut(|data| {
+                data.insert_temp(
+                    Id::new("Calculate"),
+                    (self.frames.clone(), self.control.index),
+                );
+            });
         }
         ui.separator();
         response
@@ -349,10 +356,7 @@ impl Pane {
     }
 
     fn add_row(&mut self) -> PolarsResult<()> {
-        let Some(index) = self.control.index else {
-            return Ok(());
-        };
-        let data_frame = &mut self.frames[index].data;
+        let data_frame = &mut self.frames[self.control.index].data;
         *data_frame = concat(
             [
                 data_frame.clone().lazy(),
@@ -385,10 +389,7 @@ impl Pane {
     }
 
     fn delete_row(&mut self, row: usize) -> PolarsResult<()> {
-        let Some(index) = self.control.index else {
-            return Ok(());
-        };
-        let data_frame = &mut self.frames[index].data;
+        let data_frame = &mut self.frames[self.control.index].data;
         let mut lazy_frame = data_frame.clone().lazy();
         lazy_frame = lazy_frame
             .filter(nth(0).neq(lit(row as u32)))
@@ -397,26 +398,14 @@ impl Pane {
         Ok(())
     }
 
-    fn save(&mut self) -> Result<()> {
-        if let Some(index) = self.control.index {
-            let title = self.title();
-            let frame = &mut self.frames[index];
-            let file = File::create(format!("{title}.utca.ipc"))?;
-            let mut writer = IpcWriter::new(file);
-            writer.metadata(frame.meta.clone());
-            writer.finish(&mut frame.data)?;
-            // let metadata = btreemap! {
-            //     "Name".into() => "Name".into(),
-            //     "CreatedBy".into() => "Created by".into(),
-            //     "Version".into() => "0.0.1".into(),
-            // };
-            // writer.set_custom_schema_metadata(Arc::new(metadata));
-        }
-        Ok(())
-    }
-
     fn hash(&self) -> u64 {
         hash(&self.frames)
+    }
+
+    fn save(&mut self) -> Result<()> {
+        let name = format!("{}.utca.ipc", self.title());
+        save(&name, &mut self.frames[self.control.index]);
+        Ok(())
     }
 }
 
@@ -434,15 +423,79 @@ impl PaneDelegate for Pane {
     }
 
     fn body(&mut self, ui: &mut Ui) {
-        // ui.separator();
         self.control.windows(ui);
-        let Some(index) = self.control.index else {
-            return;
-        };
         if self.control.settings.editable {
-            self.body_meta(ui, index);
+            self.body_meta(ui, self.control.index);
         }
-        self.body_data(ui, index);
+        self.body_data(ui, self.control.index);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+use self::native::save;
+#[cfg(target_arch = "wasm32")]
+use self::web::save;
+
+#[cfg(not(target_arch = "wasm32"))]
+mod native {
+    use anyhow::Result;
+    use polars::prelude::*;
+    use std::fs::File;
+    use utca::metadata::{IpcWriterExt as _, MetaDataFrame};
+
+    pub(super) fn save(name: &str, frame: &mut MetaDataFrame) -> Result<()> {
+        let file = File::create(name)?;
+        let mut writer = IpcWriter::new(file);
+        writer.metadata(frame.meta.clone());
+        writer.finish(&mut frame.data)?;
+        Ok(())
+    }
+}
+
+/// https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
+#[cfg(target_arch = "wasm32")]
+mod web {
+    use eframe::wasm_bindgen::{JsCast, JsError, JsValue, prelude::*};
+    use js_sys::{Array, ArrayBuffer, Uint8Array};
+    use polars::prelude::*;
+    use utca::metadata::{IpcWriterExt as _, MetaDataFrame};
+    use web_sys::{Blob, File, FilePropertyBag, HtmlAnchorElement, Url, window};
+    // use web_sys::{
+    //     Blob, BlobPropertyBag, File, FilePropertyBag, FileReader, HtmlAnchorElement,
+    //     HtmlInputElement, Url, window,
+    // };
+
+    /// * https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
+    /// * https://github.com/emilk/egui/discussions/3571
+    pub(super) fn save(name: &str, frame: &mut MetaDataFrame) -> Result<(), JsValue> {
+        let mut bytes = Vec::new();
+        let mut writer = IpcWriter::new(&mut bytes);
+        writer.metadata(frame.meta.clone());
+        writer.finish(&mut frame.data).unwrap();
+
+        let window = window().expect("window not found");
+        let document = window.document().expect("document not found");
+        let body = document.body().expect("body not found");
+
+        let output: HtmlAnchorElement = document.create_element("a")?.dyn_into()?;
+        output.style().set_property("display", "none")?;
+        output.set_href(&file(name, &bytes)?);
+        output.set_download(name);
+        output.click();
+        Ok(())
+    }
+
+    // https://stackoverflow.com/questions/69556755/web-sysurlcreate-object-url-with-blobblob-not-formatting-binary-data-co
+    fn file(name: &str, bytes: &[u8]) -> Result<String, JsValue> {
+        let bytes = Uint8Array::from(bytes);
+        let array = Array::new();
+        array.push(&bytes.buffer());
+        let file = File::new_with_blob_sequence_and_options(
+            &array,
+            name,
+            FilePropertyBag::new().type_("application/octet-stream"),
+        )?;
+        Ok(Url::create_object_url_with_blob(&file)?)
     }
 }
 

@@ -1,6 +1,6 @@
 use super::control::Settings;
 use crate::{
-    app::{MARGIN, text::Text, widgets::FloatWidget},
+    app::{panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};

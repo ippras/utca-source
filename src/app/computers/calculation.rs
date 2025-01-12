@@ -3,20 +3,22 @@ use crate::{
         panes::calculation::control::{Fraction, From, Settings},
         presets::CHRISTIE,
     },
-    special::polars::{ExprExt as _, SchemaExt},
-    utils::polars::{ExprExt as _, destruct},
+    special::polars::SchemaExt,
+    utils::polars::ExprExt as _,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use lipid::fatty_acid::{
-    Kind,
-    polars::{
-        ExprExt as _, SCHEMA as FATTY_ACID_SCHEMA,
-        expr::{
-            FattyAcidExpr,
-            factor::{Selectivity as _, enrichment},
-            mass::Mass as _,
+use lipid::{
+    fatty_acid::{
+        Kind,
+        polars::{
+            ExprExt as _, SCHEMA as FATTY_ACID_SCHEMA,
+            expr::{
+                factor::{Selectivity as _, enrichment},
+                mass::Mass as _,
+            },
         },
     },
+    prelude::*,
 };
 use polars::prelude::*;
 use std::hash::{Hash, Hasher};
@@ -70,28 +72,6 @@ impl Computer {
                 lazy_frame.collect()
             }
         }
-
-        // let values = key.frames.select(["Values"])?.unnest(["Values"])?;
-        // let names = values.get_column_names_str();
-        // let mut lazy_frame = key.frames.clone().lazy().unnest(["Key", "Values"]);
-        // if key.settings.christie.apply {
-        //     lazy_frame = christie(lazy_frame);
-        // }
-        // println!("lazy_frame 555: {}", lazy_frame.clone().collect().unwrap());
-        // for &name in &names {
-        //     lazy_frame = single(lazy_frame, name, key)?;
-        // }
-        // lazy_frame = lazy_frame.select([col("FA"), cols(names)]);
-        // println!("lazy_frame 999: {}", lazy_frame.clone().collect().unwrap());
-        // lazy_frame = lazy_frame.select([
-        //     as_struct(vec![col("FA")]).alias("Key"),
-        //     as_struct(vec![
-        //         all().exclude(["FA"]),
-        //         means(key.settings)?.alias("Mean"),
-        //     ])
-        //     .alias("Values"),
-        // ]);
-        // println!("lazy_frame 000: {}", lazy_frame.clone().collect().unwrap());
     }
 }
 
