@@ -2,8 +2,8 @@ use super::general::{DataFrameExt as _, ExprExt as _};
 use crate::{
     acylglycerol::Stereospecificity,
     app::panes::settings::composition::Composition,
-    fatty_acid::FattyAcid,
     r#const::relative_atomic_mass::{C, H, O},
+    fatty_acid::FattyAcid,
 };
 use polars::prelude::*;
 use std::sync::LazyLock;
@@ -204,7 +204,7 @@ impl TagsExpr {
             [self
                 .0
                 .r#struct()
-                .field_by_names([r#"^SN[1-3]$"#])
+                .field_by_name(r#"^SN[1-3]$"#)
                 .r#struct()
                 .field_by_name("FA")
                 .fatty_acid()

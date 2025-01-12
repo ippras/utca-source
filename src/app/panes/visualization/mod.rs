@@ -1,16 +1,18 @@
 use self::control::Control;
-use egui::Ui;
+use egui::{Response, ScrollArea, Sense, Ui, menu::bar};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
-/// Composition plot
+use super::PaneDelegate;
+
+/// Composition pane
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct CompositionPlot {
+pub(crate) struct Pane {
     pub(crate) data_frame: DataFrame,
     pub(crate) control: Control,
 }
 
-impl CompositionPlot {
+impl Pane {
     pub const fn new(data_frame: DataFrame) -> Self {
         Self {
             data_frame,
@@ -18,9 +20,11 @@ impl CompositionPlot {
         }
     }
 
-    pub(crate) fn header(&mut self, ui: &mut Ui) {}
+    fn header_content(&mut self, ui: &mut Ui) -> Response {
+        ui.allocate_response(Default::default(), Sense::hover())
+    }
 
-    pub(crate) fn content(&mut self, ui: &mut Ui) {
+    fn body_content(&mut self, ui: &mut Ui) {
         // let Self { context } = self;
         // let p = context.settings.visualization.precision;
         // let percent = context.settings.visualization.percent;
@@ -266,6 +270,26 @@ impl CompositionPlot {
     pub(super) fn hash(&self) -> u64 {
         // hash(&self.source)
         0
+    }
+}
+
+impl PaneDelegate for Pane {
+    fn header(&mut self, ui: &mut Ui) -> Response {
+        bar(ui, |ui| {
+            ScrollArea::horizontal()
+                .show(ui, |ui| {
+                    ui.visuals_mut().button_frame = false;
+                    self.header_content(ui)
+                })
+                .inner
+        })
+        .inner
+    }
+
+    fn body(&mut self, ui: &mut Ui) {
+        ui.separator();
+        self.control.windows(ui);
+        self.body_content(ui);
     }
 }
 

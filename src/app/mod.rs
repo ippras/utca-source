@@ -1,60 +1,56 @@
-use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
-use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Memory,
-    Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Ui, Vec2, Visuals,
-    menu::bar, util::cache, vec2, warn_if_debug_build,
-};
-use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
-use egui_notify::Toasts;
-use egui_phosphor::{
-    Variant, add_to_fonts,
-    regular::{
-        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, GRID_FOUR, INFO, PLUS,
-        SIDEBAR_SIMPLE, SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABS, TRASH,
-    },
-};
-use egui_tiles::{ContainerKind, Tile, Tree};
-use polars::frame::DataFrame;
-use serde::{Deserialize, Serialize};
-use std::{
-    borrow::BorrowMut,
-    fmt::Write,
-    mem::{replace, take},
-    str,
-    sync::mpsc::{Receiver, Sender, channel},
-    time::Duration,
-};
-use tracing::{debug, error, info, trace};
-
 use self::{
-    data::{Data, File},
+    data::Data,
     panes::{
         Pane, behavior::Behavior, calculation::Pane as CalculationPane,
         composition::Pane as CompositionPane, configuration::Pane as ConfigurationPane,
     },
     windows::{About, Github},
 };
-use crate::{
-    localization::{UiExt, localize},
-    utils::TreeExt,
+use crate::localization::{UiExt, localize};
+use chrono::{Local, NaiveDate};
+use data::{Format, save};
+use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
+use egui::{
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Grid, Id, LayerId, Layout,
+    Memory, Order, RichText, ScrollArea, SidePanel, Sides, TextEdit, TextStyle, TopBottomPanel, Ui,
+    Vec2, Visuals, menu::bar, util::cache, vec2, warn_if_debug_build,
 };
-
-/// IEEE 754-2008
-const MAX_PRECISION: usize = 16;
+use egui_ext::{DroppedFileExt, HoveredFileExt, LightDarkButton};
+use egui_notify::Toasts;
+use egui_phosphor::{
+    Variant, add_to_fonts,
+    regular::{
+        ARROWS_CLOCKWISE, CHART_BAR, CLOUD_ARROW_DOWN, FLOPPY_DISK, GEAR, GRID_FOUR, INFO, PLUS,
+        SIDEBAR_SIMPLE, SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABLE, TABS, TRASH,
+    },
+};
+use egui_tiles::{ContainerKind, Tile, Tree};
+use egui_tiles_ext::{TreeExt as _, VERTICAL};
+use panes::configuration::SCHEMA;
+use polars::prelude::*;
+use semver::Version;
+use serde::{Deserialize, Serialize};
+use std::{
+    borrow::BorrowMut,
+    f32::INFINITY,
+    fmt::Write,
+    io::Cursor,
+    mem::{replace, take},
+    process::exit,
+    str,
+    sync::mpsc::{Receiver, Sender, channel},
+    time::Duration,
+};
+use tracing::{debug, error, info, trace};
+use utca::metadata::{IpcReaderExt, MetaDataFrame, Metadata};
 
 const MARGIN: Vec2 = vec2(4.0, 0.0);
+/// IEEE 754-2008
+const MAX_PRECISION: usize = 16;
 const NOTIFICATIONS_DURATION: Duration = Duration::from_secs(15);
-
-// const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
-
 const SIZE: f32 = 32.0;
 
-pub(crate) macro icon {
-    ($icon:expr, x8) => { RichText::new($icon).size(8.0) },
-    ($icon:expr, x16) => { RichText::new($icon).size(16.0) },
-    ($icon:expr, x32) => { RichText::new($icon).size(32.0) },
-    ($icon:expr, x64) => { RichText::new($icon).size(64.0) }
-}
+// const DESCRIPTION: &str = "Positional-species and positional-type composition of TAG from mature fruit arils of the Euonymus section species, mol % of total TAG";
 
 fn custom_style(ctx: &Context) {
     let mut style = (*ctx.style()).clone();
@@ -73,14 +69,13 @@ pub struct App {
     // Panels
     left_panel: bool,
     // Panes
-    // #[serde(skip)]
     tree: Tree<Pane>,
     // Data
     data: Data,
 
     // Data channel
     #[serde(skip)]
-    channel: (Sender<(String, String)>, Receiver<(String, String)>),
+    channel: (Sender<Vec<u8>>, Receiver<Vec<u8>>),
 
     // Windows
     #[serde(skip)]
@@ -132,6 +127,8 @@ impl App {
     fn context(&self, ctx: &Context) {
         // Data channel
         ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
+        // Github token
+        // ctx.data_mut(|data| data.insert_temp(Id::new("GithubToken"), self.channel.0.clone()));
     }
 }
 
@@ -166,10 +163,7 @@ impl App {
         CentralPanel::default()
             .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
             .show(ctx, |ui| {
-                let mut behavior = Behavior {
-                    data: &mut self.data,
-                    close: None,
-                };
+                let mut behavior = Behavior { close: None };
                 self.tree.ui(&mut behavior, ui);
                 if let Some(id) = behavior.close {
                     self.tree.tiles.remove(id);
@@ -194,15 +188,18 @@ impl App {
             bar(ui, |ui| {
                 ScrollArea::horizontal().show(ui, |ui| {
                     // Left panel
-                    ui.toggle_value(&mut self.left_panel, icon!(SIDEBAR_SIMPLE, x32))
-                        .on_hover_text(localize!("LeftPanel"));
+                    ui.toggle_value(
+                        &mut self.left_panel,
+                        RichText::new(SIDEBAR_SIMPLE).size(SIZE),
+                    )
+                    .on_hover_text(localize!("LeftPanel"));
                     ui.separator();
                     // Light/Dark
                     ui.light_dark_button(SIZE);
                     ui.separator();
                     // Reset
                     if ui
-                        .button(icon!(TRASH, x32))
+                        .button(RichText::new(TRASH).size(SIZE))
                         .on_hover_text(localize!("reset_application"))
                         .clicked()
                     {
@@ -211,7 +208,7 @@ impl App {
                     }
                     ui.separator();
                     if ui
-                        .button(icon!(ARROWS_CLOCKWISE, x32))
+                        .button(RichText::new(ARROWS_CLOCKWISE).size(SIZE))
                         .on_hover_text(localize!("reset_gui"))
                         .clicked()
                     {
@@ -266,44 +263,72 @@ impl App {
                         }
                     }
                     ui.separator();
-                    // let mut toggle = |ui: &mut Ui, pane| {
-                    //     let tile_id = self.tree.tiles.find_pane(&pane);
-                    //     if ui
-                    //         .selectable_label(
-                    //             tile_id.is_some_and(|tile_id| self.tree.is_visible(tile_id)),
-                    //             icon!(pane.icon(), x32),
-                    //         )
-                    //         .on_hover_text(pane.title())
-                    //         .clicked()
-                    //     {
-                    //         if let Some(id) = tile_id {
-                    //             self.tree.tiles.toggle_visibility(id);
-                    //         } else {
-                    //             self.tree.insert_pane(pane);
-                    //         }
-                    //     }
-                    // };
+                    ui.menu_button(RichText::new(GEAR).size(SIZE), |ui| {
+                        Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                            ui.label(localize!("github token"));
+                            let id = Id::new("GithubToken");
+                            let mut github_token = ui.data_mut(|data| {
+                                data.get_persisted::<String>(id).unwrap_or_default()
+                            });
+                            if ui.text_edit_singleline(&mut github_token).changed() {
+                                ui.data_mut(|data| data.insert_persisted(id, github_token));
+                            }
+                            if ui.button(RichText::new(TRASH).heading()).clicked() {
+                                ui.data_mut(|data| data.remove::<String>(id));
+                            }
+                            ui.end_row();
 
+                            ui.label(localize!("christie"));
+                            let pane = Pane::christie();
+                            let tile_id = self.tree.tiles.find_pane(&pane);
+                            let mut selected = tile_id.is_some();
+                            if ui
+                                .toggle_value(&mut selected, RichText::new(TABLE).heading())
+                                .on_hover_text("Christie")
+                                .clicked()
+                            {
+                                if selected {
+                                    self.tree.insert_pane::<VERTICAL>(pane);
+                                } else {
+                                    self.tree.tiles.remove(tile_id.unwrap());
+                                }
+                            }
+                        });
+                    });
+                    ui.separator();
                     // Configuration
                     if !self.data.is_empty() {
                         let pane = Pane::Configuration(ConfigurationPane::new(self.data.checked()));
                         let button = ui
-                            .button(icon!(pane.icon(), x32))
+                            .button(RichText::new(pane.icon()).size(SIZE))
                             .on_hover_text(pane.title());
                         if button.clicked() {
-                            self.tree.insert_pane(pane);
+                            self.tree.insert_pane::<VERTICAL>(pane);
                         }
                     }
                     // Create
-                    if ui.button(icon!(PLUS, x32)).clicked() {
-                        self.data.files.push(Default::default());
+                    if ui.button(RichText::new(PLUS).size(SIZE)).clicked() {
+                        let data_frame = DataFrame::empty_with_schema(&SCHEMA);
+                        self.data.push(MetaDataFrame {
+                            meta: Metadata {
+                                version: None,
+                                name: "Untitled".to_owned(),
+                                description: "".to_owned(),
+                                authors: Vec::new(),
+                                date: Some(Local::now().date_naive()),
+                            },
+                            data: data_frame,
+                        });
                     }
                     // Load
-                    if ui.button(icon!(CLOUD_ARROW_DOWN, x32)).clicked() {
-                        self.github.toggle();
+                    if ui
+                        .button(RichText::new(CLOUD_ARROW_DOWN).size(SIZE))
+                        .clicked()
+                    {
+                        self.github.toggle(ui);
                     }
                     // Save
-                    if ui.button(icon!(FLOPPY_DISK, x32)).clicked() {
+                    if ui.button(RichText::new(FLOPPY_DISK).size(SIZE)).clicked() {
                         if let Err(error) = self.data.save() {
                             error!(%error);
                         }
@@ -312,7 +337,7 @@ impl App {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // About
                         if ui
-                            .button(icon!(INFO, x32))
+                            .button(RichText::new(INFO).size(SIZE))
                             .on_hover_text("About window")
                             .clicked()
                         {
@@ -346,18 +371,20 @@ impl App {
 // Copy/Paste, Drag&Drop
 impl App {
     fn calculate(&mut self, ctx: &Context) {
-        if let Some(data_frame) =
-            ctx.data_mut(|data| data.remove_temp::<DataFrame>(Id::new("Calculate")))
+        if let Some((frames, index)) = ctx
+            .data_mut(|data| data.remove_temp::<(Vec<MetaDataFrame>, usize)>(Id::new("Calculate")))
         {
-            self.tree.insert_pane(Pane::calculation(data_frame));
+            self.tree
+                .insert_pane::<VERTICAL>(Pane::calculation(frames, index));
         }
     }
 
     fn compose(&mut self, ctx: &Context) {
-        if let Some(data_frame) =
-            ctx.data_mut(|data| data.remove_temp::<DataFrame>(Id::new("Compose")))
-        {
-            self.tree.insert_pane(Pane::composition(data_frame));
+        if let Some((frames, index)) = ctx.data_mut(|data| {
+            data.remove_temp::<(Vec<MetaDataFrame>, Option<usize>)>(Id::new("Compose"))
+        }) {
+            self.tree
+                .insert_pane::<VERTICAL>(Pane::composition(frames, index));
         }
     }
 
@@ -390,34 +417,31 @@ impl App {
         }) {
             info!(?dropped_files);
             for dropped in dropped_files {
-                trace!(?dropped);
-                let content = match dropped.content() {
-                    Ok(content) => content,
-                    Err(error) => {
-                        error!(%error);
-                        self.toasts
-                            .error(format!("{}: {error}", dropped.display()))
-                            .closable(true)
-                            .duration(Some(NOTIFICATIONS_DURATION));
-                        continue;
-                    }
-                };
-                trace!(content);
-                self.channel
-                    .0
-                    .send((dropped.name().to_owned(), content))
-                    .ok();
+                // trace!(?dropped);
+                // let content = match dropped.content() {
+                //     Ok(content) => content,
+                //     Err(error) => {
+                //         error!(%error);
+                //         self.toasts
+                //             .error(format!("{}: {error}", dropped.display()))
+                //             .closable(true)
+                //             .duration(Some(NOTIFICATIONS_DURATION));
+                //         continue;
+                //     }
+                // };
+                // trace!(content);
+                // self.channel.0.send(content).ok();
             }
         }
     }
 
     fn parse(&mut self, ctx: &Context) {
-        for (name, content) in self.channel.1.try_iter() {
-            trace!(name, content);
-            match ron::de::from_str(&content) {
-                Ok(fatty_acids) => {
-                    trace!(?fatty_acids);
-                    self.data.push(File { name, fatty_acids });
+        for bytes in self.channel.1.try_iter() {
+            trace!(?bytes);
+            match MetaDataFrame::read(Cursor::new(bytes)) {
+                Ok(frame) => {
+                    trace!(?frame);
+                    self.data.push(frame);
                     ctx.request_repaint();
                 }
                 Err(error) => error!(%error),
@@ -529,6 +553,7 @@ impl eframe::App for App {
 mod computers;
 mod data;
 mod panes;
+mod presets;
 mod text;
 mod widgets;
 mod windows;

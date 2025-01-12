@@ -129,7 +129,7 @@ fn ui_children(ui: &mut Ui, children: Children<'_, &str, &str>) {
                 if let Some(&url) = trie.value() {
                     ui.horizontal(|ui| {
                         if ui.button(CLOUD_ARROW_DOWN).on_hover_text(url).clicked() {
-                            load_blob(ui.ctx(), url);
+                            load_blob(ui.ctx(), name, url);
                         }
                         ui.label(name);
                     });
@@ -179,14 +179,15 @@ fn load_tree(github_token: impl ToString, url: impl ToString) -> Promise<Option<
     // promise
 }
 
-fn load_blob(ctx: &Context, url: impl ToString) {
+fn load_blob(ctx: &Context, name: impl ToString, url: impl ToString) {
     let ctx = ctx.clone();
+    let name = name.to_string();
     let url = url.to_string();
     let _ = spawn(async move {
         match try_load_blob(url).await {
             Ok(blob) => ctx.data_mut(|data| {
-                if let Some(sender) = data.get_temp::<Sender<Vec<u8>>>(Id::new("Data")) {
-                    sender.send(blob).ok();
+                if let Some(sender) = data.get_temp::<Sender<(String, String)>>(Id::new("Data")) {
+                    sender.send((name, blob)).ok();
                 }
             }),
             Err(error) => error!(%error),
@@ -208,16 +209,17 @@ async fn try_load_tree(github_token: impl Display, url: impl ToString) -> Result
     Ok(tree)
 }
 
-async fn try_load_blob(url: impl ToString) -> Result<Vec<u8>> {
+async fn try_load_blob(url: impl ToString) -> Result<String> {
     let request = Request::get(url);
     let response = fetch_async(request).await.map_err(Error::msg)?;
     let blob = response.json::<Blob>()?;
     trace!(?blob);
-    let mut bytes = Vec::new();
+    error!(?blob);
+    let mut content = String::new();
     for line in blob.content.split_terminator('\n') {
-        bytes.append(&mut BASE64_STANDARD.decode(line)?);
+        content.push_str(&String::from_utf8(BASE64_STANDARD.decode(line)?)?);
     }
-    Ok(bytes)
+    Ok(content)
 }
 
 /// Tree

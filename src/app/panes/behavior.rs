@@ -1,18 +1,15 @@
-use egui::{CursorIcon, Frame, Margin, RichText, Sides, Ui, WidgetText};
+use super::Pane;
+use egui::{Frame, Margin, RichText, Sides, Ui, WidgetText};
 use egui_phosphor::regular::X;
 use egui_tiles::{TileId, UiResponse};
 
-use super::Pane;
-use crate::app::data::Data;
-
 /// Behavior
 #[derive(Debug)]
-pub(crate) struct Behavior<'a> {
-    pub(crate) data: &'a mut Data,
+pub(crate) struct Behavior {
     pub(crate) close: Option<TileId>,
 }
 
-impl egui_tiles::Behavior<Pane> for Behavior<'_> {
+impl egui_tiles::Behavior<Pane> for Behavior {
     fn tab_title_for_pane(&mut self, pane: &Pane) -> WidgetText {
         pane.title().into()
     }
@@ -24,14 +21,7 @@ impl egui_tiles::Behavior<Pane> for Behavior<'_> {
                 let response = Sides::new()
                     .show(
                         ui,
-                        |ui| {
-                            let response = ui
-                                .heading(pane.title())
-                                .on_hover_text(format!("{:x}", pane.hash()))
-                                .on_hover_cursor(CursorIcon::Grab);
-                            pane.header(ui);
-                            response
-                        },
+                        |ui| pane.header(ui),
                         |ui| {
                             ui.visuals_mut().button_frame = false;
                             if ui.button(RichText::new(X).heading()).clicked() {

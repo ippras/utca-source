@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Control {
     pub(crate) settings: Settings,
-    pub(crate) index: usize,
+    pub(crate) index: Option<usize>,
     pub(crate) open: bool,
 }
 
@@ -15,7 +15,7 @@ impl Control {
     pub(crate) const fn new() -> Self {
         Self {
             settings: Settings::new(),
-            index: 0,
+            index: None,
             open: false,
         }
     }
@@ -30,13 +30,15 @@ impl Control {
 }
 
 /// Configuration settings
-#[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) struct Settings {
     #[serde(skip)]
     pub(crate) resizable: bool,
     #[serde(skip)]
     pub(crate) editable: bool,
     pub(crate) precision: usize,
+    pub(crate) sticky: usize,
+    pub(crate) truncate: bool,
 
     pub(crate) names: bool,
     pub(crate) properties: bool,
@@ -47,7 +49,9 @@ impl Settings {
         Self {
             resizable: false,
             editable: false,
-            precision: 0,
+            precision: 2,
+            sticky: 0,
+            truncate: false,
             names: true,
             properties: true,
         }

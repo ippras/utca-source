@@ -85,7 +85,7 @@ pub(crate) trait ExprExt {
 
     fn sn(self) -> StereospecificNumberExpr;
 
-    fn tag(self) -> TagsExpr;
+    fn tag(self) -> TriacylglycerolExpr;
 }
 
 impl ExprExt for Expr {
@@ -97,8 +97,8 @@ impl ExprExt for Expr {
         StereospecificNumberExpr(self)
     }
 
-    fn tag(self) -> TagsExpr {
-        TagsExpr(self)
+    fn tag(self) -> TriacylglycerolExpr {
+        TriacylglycerolExpr(self)
     }
 }
 
@@ -214,10 +214,10 @@ impl From<FattyAcidExpr> for Expr {
     }
 }
 
-/// Tags
-pub struct TagsExpr(Expr);
+/// Triacylglycerol [`Expr`]
+pub struct TriacylglycerolExpr(Expr);
 
-impl TagsExpr {
+impl TriacylglycerolExpr {
     pub fn sn(self) -> StereospecificNumberExpr {
         StereospecificNumberExpr(self.0.clone().r#struct().field_by_name("*"))
     }

@@ -1,36 +1,33 @@
-use std::ops::Range;
-
 use super::control::{From, Settings};
 use crate::{
-    app::{MARGIN, widgets::FloatValue},
-    localization::localize,
-    special::{
-        new_fatty_acid::{COMMON, DisplayWithOptions},
-        polars::{DataFrameExt as _, columns::fatty_acids::ColumnExt as _},
+    app::{
+        MARGIN,
+        widgets::{FattyAcidWidget, FloatWidget},
     },
-    utils::{polars::DataFrameExt as _, ui::UiExt as _},
+    localization::localize,
+    utils::polars::DataFrameExt as _,
 };
-use egui::{Frame, Id, Margin, TextStyle, TextWrapMode, Ui};
+use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
 use egui_table::{AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate};
+use lipid::fatty_acid::polars::DataFrameExt as _;
 use polars::prelude::*;
+use std::ops::Range;
 
-const META: &str = "Meta";
-
-const KEY: Range<usize> = 0..2;
-const EXPERIMENTAL: Range<usize> = KEY.end..KEY.end + 3;
+const ID: Range<usize> = 0..3;
+const EXPERIMENTAL: Range<usize> = ID.end..ID.end + 3;
 const THEORETICAL: Range<usize> = EXPERIMENTAL.end..EXPERIMENTAL.end + 5;
-const FACTORS: Range<usize> = THEORETICAL.end..THEORETICAL.end + 4;
+const FACTORS: Range<usize> = THEORETICAL.end..THEORETICAL.end + 2;
 const LEN: usize = FACTORS.end;
 
-const TOP: &[Range<usize>] = &[KEY, EXPERIMENTAL, THEORETICAL, FACTORS];
-
+const TOP: &[Range<usize>] = &[ID, EXPERIMENTAL, THEORETICAL, FACTORS];
 const MIDDLE: &[Range<usize>] = &[
-    key::INDEX,
-    key::FA,
-    experimental::TAG123,
+    id::INDEX,
+    id::LABEL,
+    id::FA,
+    experimental::TAG,
     experimental::DAG1223,
     experimental::MAG2,
-    theoretical::TAG123,
+    theoretical::TAG,
     theoretical::DAG1223,
     theoretical::MAG2,
     theoretical::DAG13,
@@ -38,32 +35,29 @@ const MIDDLE: &[Range<usize>] = &[
     factors::SF,
 ];
 
-/// Kind
-pub(crate) enum Kind {
-    Single,
-    Mean,
-}
-
 /// Calculation table
-pub(crate) struct CalculationTable<'a> {
-    data_frame: DataFrame,
-    kind: Kind,
+pub(crate) struct TableView<'a> {
+    data_frame: &'a DataFrame,
     settings: &'a Settings,
 }
 
-impl<'a> CalculationTable<'a> {
-    pub(crate) fn new(data_frame: DataFrame, kind: Kind, settings: &'a Settings) -> Self {
+impl<'a> TableView<'a> {
+    pub(crate) fn new(data_frame: &'a DataFrame, settings: &'a Settings) -> Self {
         Self {
             data_frame,
-            kind,
             settings,
         }
     }
 }
 
-impl CalculationTable<'_> {
-    pub(crate) fn ui(&mut self, ui: &mut Ui) {
-        let id_salt = Id::new("CalculationDataTable");
+impl TableView<'_> {
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
+        let id_salt = Id::new("CalculationTable");
+        if self.settings.reset {
+            // let id = TableState::id(ui, Id::new(id_salt));
+            // debug_assert!(TableState::load(ui.ctx(), id).is_some(), "Wrong state_id");
+            // TableState::reset(ui.ctx(), id);
+        }
         let height = ui.text_style_height(&TextStyle::Heading);
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = LEN;
@@ -90,470 +84,410 @@ impl CalculationTable<'_> {
             .show(ui, self);
     }
 
-    fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: usize) {
+    fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {
         if self.settings.truncate {
             ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
         }
         match (row, column) {
             // Top
-            (0, 0) => {
-                ui.heading("Key");
+            (0, ID) => {
+                ui.heading(localize!("ID"));
             }
-            (0, 1) => {
-                ui.heading("Experimental");
+            (0, EXPERIMENTAL) => {
+                ui.heading(localize!("Experimental"));
             }
-            (0, 2) => {
-                ui.heading("Theoretical");
+            (0, THEORETICAL) => {
+                ui.heading(localize!("Theoretical"));
             }
-            (0, 3) => {
-                ui.heading("Factors");
+            (0, FACTORS) => {
+                ui.heading(localize!("Factors"));
             }
             // Middle
-            (1, 0) => {
-                ui.heading("Index");
+            (1, id::INDEX) => {
+                ui.heading(localize!("Index"));
             }
-            (1, 1) => {
+            (1, id::LABEL) => {
+                ui.heading(localize!("Label"));
+            }
+            (1, id::FA) => {
                 ui.heading(localize!("fatty_acid.abbreviation"))
                     .on_hover_text(localize!("fatty_acid"));
             }
-            (1, 2) => {
+            (1, experimental::TAG) => {
                 ui.heading("TAG")
                     .on_hover_text(localize!("triacylglycerol"));
             }
-            (1, 3) => {
+            (1, experimental::DAG1223) => {
                 ui.heading("DAG1223")
                     .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
             }
-            (1, 4) => {
+            (1, experimental::MAG2) => {
                 ui.heading("MAG2")
                     .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
             }
-            (1, 5) => {
+            (1, theoretical::TAG) => {
                 ui.heading("TAG")
                     .on_hover_text(localize!("triacylglycerol"));
             }
-            (1, 6) => {
+            (1, theoretical::DAG1223) => {
                 ui.heading("DAG1223")
                     .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
             }
-            (1, 7) => {
+            (1, theoretical::MAG2) => {
                 ui.heading("MAG2")
                     .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
             }
-            (1, 8) => {
+            (1, theoretical::DAG13) => {
                 ui.heading("DAG13")
                     .on_hover_text(format!("sn-13 {}", localize!("diacylglycerol")));
             }
-            (1, 9) => {
+            (1, factors::EF) => {
                 ui.heading("EF")
                     .on_hover_text(localize!("enrichment_factor"));
             }
-            (1, 10) => {
+            (1, factors::SF) => {
                 ui.heading("SF")
                     .on_hover_text(localize!("selectivity_factor"));
             }
             // Bottom
-            (2, 0..8) => {}
-            (2, 8) => {
+            (2, theoretical::dag13::DAG1223) => {
                 ui.heading("DAG1223");
             }
-            (2, 9) => {
+            (2, theoretical::dag13::MAG2) => {
                 ui.heading("MAG2");
             }
-            (2, 10) => {
-                ui.heading("MAG2");
-            }
-            (2, 11) => {
-                ui.heading("DAG13");
-            }
-            (2, 12) => {
-                ui.heading("MAG2");
-            }
-            (2, 13) => {
-                ui.heading("DAG13");
-            }
-            _ => unreachable!(),
-        };
-    }
-
-    fn body_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: usize) {
-        let footer = row == self.data_frame.height();
-        // let footer = row == self.data_frame[column].height();
-        match (row, column) {
-            (row, 0) => {
-                if row != self.data_frame.height() {
-                    let indices = self.data_frame.u32("Index");
-                    let index = indices.get(row).unwrap();
-                    ui.label(index.to_string());
-                }
-            }
-            (row, 1) => {
-                if row != self.data_frame.height() {
-                    let fatty_acids = self.data_frame["FA"].fa();
-                    let index = row;
-                    let (label, fatty_acid) = fatty_acids.get(index).unwrap();
-                    let text = if label.is_empty() { "C" } else { &label };
-                    let title = ui.subscripted_text(
-                        text,
-                        &format!("{:#}", &fatty_acid.display(COMMON)),
-                        Default::default(),
-                    );
-                    ui.label(title);
-                }
-            }
-            // (row, 2) => match self.kind {
-            //     Kind::Mean => self.mean(
-            //         ui,
-            //         &["Experimental", "TAG"],
-            //         row,
-            //         false,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            //     _ => self.data(
-            //         ui,
-            //         &["Experimental", "TAG"],
-            //         row,
-            //         false,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            // },
-            // (row, 3) => {
-            //     let disable = self.settings.from != From::Dag1223;
-            //     match self.kind {
-            //         Kind::Mean => self.mean(
-            //             ui,
-            //             &["Experimental", "DAG1223"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //         _ => self.data(
-            //             ui,
-            //             &["Experimental", "DAG1223"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //     }
-            // }
-            // (row, 4) => {
-            //     let disable = self.settings.from != From::Mag2;
-            //     match self.kind {
-            //         Kind::Mean => self.mean(
-            //             ui,
-            //             &["Experimental", "MAG2"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //         _ => self.data(
-            //             ui,
-            //             &["Experimental", "MAG2"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //     }
-            // }
-            // (row, 5) => match self.kind {
-            //     Kind::Mean => self.mean(
-            //         ui,
-            //         &["Theoretical", "TAG"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            //     _ => self.data(
-            //         ui,
-            //         &["Theoretical", "TAG"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            // },
-            // (row, 6) => match self.kind {
-            //     Kind::Mean => self.mean(
-            //         ui,
-            //         &["Theoretical", "DAG1223"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            //     _ => self.data(
-            //         ui,
-            //         &["Theoretical", "DAG1223"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            // },
-            // (row, 7) => match self.kind {
-            //     Kind::Mean => self.mean(
-            //         ui,
-            //         &["Theoretical", "MAG2"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            //     _ => self.data(
-            //         ui,
-            //         &["Theoretical", "MAG2"],
-            //         row,
-            //         true,
-            //         self.settings.percent,
-            //         footer,
-            //     ),
-            // },
-            // (row, 8) => {
-            //     let disable = self.settings.from != From::Dag1223;
-            //     match self.kind {
-            //         Kind::Mean => self.mean(
-            //             ui,
-            //             &["Theoretical", "DAG13", "DAG1223"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //         _ => self.data(
-            //             ui,
-            //             &["Theoretical", "DAG13", "DAG1223"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //     }
-            // }
-            // (row, 9) => {
-            //     let disable = self.settings.from != From::Mag2;
-            //     match self.kind {
-            //         Kind::Mean => self.mean(
-            //             ui,
-            //             &["Theoretical", "DAG13", "MAG2"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //         _ => self.data(
-            //             ui,
-            //             &["Theoretical", "DAG13", "MAG2"],
-            //             row,
-            //             disable,
-            //             self.settings.percent,
-            //             footer,
-            //         ),
-            //     }
-            // }
-            // (row, 10) => match self.kind {
-            //     Kind::Mean => self.mean(ui, &["EF", "MAG2"], row, true, false, footer),
-            //     _ => self.data(ui, &["EF", "MAG2"], row, true, false, footer),
-            // },
-            // (row, 11) => match self.kind {
-            //     Kind::Mean => self.mean(ui, &["EF", "DAG13"], row, true, false, footer),
-            //     _ => self.data(ui, &["EF", "DAG13"], row, true, false, footer),
-            // },
-            // (row, 12) => match self.kind {
-            //     Kind::Mean => self.mean(ui, &["SF", "MAG2"], row, true, false, footer),
-            //     _ => self.data(ui, &["SF", "MAG2"], row, true, false, footer),
-            // },
-            // (row, 13) => match self.kind {
-            //     Kind::Mean => self.mean(ui, &["SF", "DAG13"], row, true, false, footer),
-            //     _ => self.data(ui, &["SF", "DAG13"], row, true, false, footer),
-            // },
             _ => {}
-            // _ => unreachable!(),
+        };
+    }
+
+    fn cell_content_ui(
+        &mut self,
+        ui: &mut Ui,
+        row: usize,
+        column: Range<usize>,
+    ) -> PolarsResult<()> {
+        if row != self.data_frame.height() {
+            self.body_cell_content_ui(ui, row, column)?;
+        } else {
+            self.footer_cell_content_ui(ui, column)?;
         }
-        // match column {
-        //     _ => {}
-        //     0..=1 => {}
-        //     2 => {
-        //         let experimental = self
-        //             .data_frame
-        //             .destruct(&self.name)
-        //             .destruct("Experimental");
-        //         let sum = experimental.f64("TAG").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     3 => {
-        //         let experimental = self
-        //             .data_frame
-        //             .destruct(&self.name)
-        //             .destruct("Experimental");
-        //         let sum = experimental.f64("DAG1223").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(self.settings.from != From::Dag1223)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     4 => {
-        //         let experimental = self
-        //             .data_frame
-        //             .destruct(&self.name)
-        //             .destruct("Experimental");
-        //         let sum = experimental.f64("MAG2").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(self.settings.from != From::Mag2)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     5 => {
-        //         let theoretical = self.data_frame.destruct(&self.name).destruct("Theoretical");
-        //         let sum = theoretical.f64("TAG").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(true)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     6 => {
-        //         let theoretical = self.data_frame.destruct(&self.name).destruct("Theoretical");
-        //         let sum = theoretical.f64("DAG1223").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(true)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     7 => {
-        //         let theoretical = self.data_frame.destruct(&self.name).destruct("Theoretical");
-        //         let sum = theoretical.f64("MAG2").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(true)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     8 => {
-        //         let theoretical = self
-        //             .data_frame
-        //             .destruct(&self.name)
-        //             .destruct("Theoretical")
-        //             .destruct("DAG13");
-        //         let sum = theoretical.f64("DAG1223").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(self.settings.from != From::Dag1223)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     9 => {
-        //         let theoretical = self
-        //             .data_frame
-        //             .destruct(&self.name)
-        //             .destruct("Theoretical")
-        //             .destruct("DAG13");
-        //         let sum = theoretical.f64("MAG2").sum();
-        //         ui.add(
-        //             FloatValue::new(sum)
-        //                 .disable(self.settings.from != From::Mag2)
-        //                 .percent(self.settings.percent)
-        //                 .precision(Some(self.settings.precision))
-        //                 .hover(),
-        //         );
-        //     }
-        //     _ => unreachable!(),
-        // }
+        Ok(())
     }
 
-    fn data(
-        &self,
+    fn body_cell_content_ui(
+        &mut self,
         ui: &mut Ui,
-        names: &[&str],
         row: usize,
-        disable: bool,
-        percent: bool,
-        footer: bool,
-    ) {
-        let r#struct = self.data_frame.destructs(&names[0..names.len() - 1]);
-        let values = r#struct.f64(names[names.len() - 1]);
-        let value = if footer {
-            values.sum()
-        } else {
-            values.get(row)
-        };
-        ui.add(
-            FloatValue::new(value)
-                .disable(disable)
-                .percent(percent)
-                .precision(Some(self.settings.precision))
-                .hover(),
-        );
+        column: Range<usize>,
+    ) -> PolarsResult<()> {
+        match (row, column) {
+            (row, id::INDEX) => {
+                let indices = self.data_frame.u32("Index");
+                let index = indices.get(row).unwrap();
+                ui.label(index.to_string());
+            }
+            (row, id::LABEL) => {
+                let labels = self.data_frame.str("Label");
+                let label = labels.get(row).unwrap();
+                ui.label(label);
+            }
+            (row, id::FA) => {
+                FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
+                    .hover()
+                    .ui(ui)?;
+            }
+            (row, experimental::TAG) => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Triacylglycerol")?,
+                    Some(row),
+                    false,
+                    true,
+                )?;
+            }
+            (row, experimental::DAG1223) => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    Some(row),
+                    self.settings.from != From::Dag1223,
+                    true,
+                )?;
+            }
+            (row, experimental::MAG2) => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    Some(row),
+                    self.settings.from != From::Mag2,
+                    true,
+                )?;
+            }
+            (row, theoretical::TAG) => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Triacylglycerol")?,
+                    Some(row),
+                    true,
+                    true,
+                )?;
+            }
+            (row, theoretical::DAG1223) => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    Some(row),
+                    true,
+                    true,
+                )?;
+            }
+            (row, theoretical::MAG2) => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    Some(row),
+                    true,
+                    true,
+                )?;
+            }
+            (row, theoretical::dag13::DAG1223) => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol13")?
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    Some(row),
+                    self.settings.from != From::Dag1223,
+                    true,
+                )?;
+            }
+            (row, theoretical::dag13::MAG2) => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol13")?
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    Some(row),
+                    self.settings.from != From::Mag2,
+                    true,
+                )?;
+            }
+            (row, factors::ef::MAG2) => {
+                self.value(
+                    ui,
+                    self.data_frame["Factors"]
+                        .struct_()?
+                        .field_by_name("Enrichment")?
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    Some(row),
+                    false,
+                    false,
+                )?;
+            }
+            (row, factors::sf::MAG2) => {
+                self.value(
+                    ui,
+                    self.data_frame["Factors"]
+                        .struct_()?
+                        .field_by_name("Selectivity")?
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    Some(row),
+                    false,
+                    false,
+                )?;
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
-    fn mean(
+    fn footer_cell_content_ui(&mut self, ui: &mut Ui, column: Range<usize>) -> PolarsResult<()> {
+        match column {
+            experimental::TAG => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Triacylglycerol")?,
+                    None,
+                    false,
+                    true,
+                )?
+                .on_hover_text("∑ TAG");
+            }
+            experimental::DAG1223 => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    None,
+                    self.settings.from != From::Dag1223,
+                    true,
+                )?
+                .on_hover_text("∑ DAG1223");
+            }
+            experimental::MAG2 => {
+                self.value(
+                    ui,
+                    self.data_frame["Experimental"]
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    None,
+                    self.settings.from != From::Mag2,
+                    true,
+                )?
+                .on_hover_text("∑ MAG2");
+            }
+            theoretical::TAG => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Triacylglycerol")?,
+                    None,
+                    true,
+                    true,
+                )?
+                .on_hover_text("∑ TAG");
+            }
+            theoretical::DAG1223 => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    None,
+                    true,
+                    true,
+                )?
+                .on_hover_text("∑ DAG1223");
+            }
+            theoretical::MAG2 => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    None,
+                    true,
+                    true,
+                )?
+                .on_hover_text("∑ MAG2");
+            }
+            theoretical::dag13::DAG1223 => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol13")?
+                        .struct_()?
+                        .field_by_name("Diacylglycerol1223")?,
+                    None,
+                    self.settings.from != From::Dag1223,
+                    true,
+                )?
+                .on_hover_text("∑ DAG13");
+            }
+            theoretical::dag13::MAG2 => {
+                self.value(
+                    ui,
+                    self.data_frame["Theoretical"]
+                        .struct_()?
+                        .field_by_name("Diacylglycerol13")?
+                        .struct_()?
+                        .field_by_name("Monoacylglycerol2")?,
+                    None,
+                    self.settings.from != From::Mag2,
+                    true,
+                )?
+                .on_hover_text("∑ DAG13");
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn value(
         &self,
         ui: &mut Ui,
-        names: &[&str],
-        row: usize,
+        series: Series,
+        row: Option<usize>,
         disable: bool,
         percent: bool,
-        footer: bool,
-    ) {
-        let r#struct = self.data_frame.destructs(names);
-        let means = r#struct.f64("Mean");
-        let standard_deviations = r#struct.f64("Std");
-        let mean = if footer { means.sum() } else { means.get(row) };
-        let standard_deviation = if footer {
-            standard_deviations.sum()
+    ) -> PolarsResult<Response> {
+        Ok(if let Some(r#struct) = series.try_struct() {
+            let mean = if let Some(row) = row {
+                r#struct.field_by_name("Mean")?.f64()?.get(row)
+            } else {
+                r#struct.field_by_name("Mean")?.f64()?.sum()
+            };
+            FloatWidget::new(|| Ok(mean))
+                .percent(percent)
+                .precision(Some(self.settings.precision))
+                .disable(disable)
+                .hover()
+                .show(ui);
+            ui.label("±");
+            let standard_deviation = if let Some(row) = row {
+                r#struct
+                    .field_by_name("StandardDeviations")?
+                    .f64()?
+                    .get(row)
+            } else {
+                r#struct.field_by_name("StandardDeviations")?.f64()?.sum()
+            };
+            FloatWidget::new(|| Ok(standard_deviation))
+                .percent(percent)
+                .precision(Some(self.settings.precision))
+                .disable(disable)
+                .hover()
+                .show(ui)
+                .response
         } else {
-            standard_deviations.get(row)
-        };
-        ui.add(
-            FloatValue::new(mean)
-                .disable(disable)
+            let values = series.f64()?;
+            let value = if let Some(row) = row {
+                values.get(row)
+            } else {
+                values.sum()
+            };
+            FloatWidget::new(|| Ok(value))
                 .percent(percent)
                 .precision(Some(self.settings.precision))
-                .hover(),
-        );
-        ui.label("±");
-        ui.add(
-            FloatValue::new(standard_deviation)
                 .disable(disable)
-                .percent(percent)
-                .precision(Some(self.settings.precision))
-                .hover(),
-        );
+                .hover()
+                .show(ui)
+                .response
+        })
     }
 }
 
-impl TableDelegate for CalculationTable<'_> {
+impl TableDelegate for TableView<'_> {
     fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
+        ui.painter()
+            .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
         Frame::none()
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
-                self.header_cell_content_ui(ui, cell.row_nr, cell.group_index)
+                self.header_cell_content_ui(ui, cell.row_nr, cell.col_range.clone())
             });
     }
 
@@ -565,59 +499,59 @@ impl TableDelegate for CalculationTable<'_> {
         Frame::none()
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
-                self.body_cell_content_ui(ui, cell.row_nr as _, cell.col_nr)
+                self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
+                    .unwrap()
             });
     }
 }
 
-mod key {
+mod id {
     use super::*;
 
-    pub(super) const INDEX: Range<usize> = KEY.start..KEY.start + 1;
-    pub(super) const FA: Range<usize> = INDEX.end..INDEX.end + 1;
+    pub(super) const INDEX: Range<usize> = ID.start..ID.start + 1;
+    pub(super) const LABEL: Range<usize> = INDEX.end..INDEX.end + 1;
+    pub(super) const FA: Range<usize> = LABEL.end..LABEL.end + 1;
 }
 
 mod experimental {
     use super::*;
 
-    pub(super) const TAG123: Range<usize> = EXPERIMENTAL.start..EXPERIMENTAL.start + 1;
-    pub(super) const DAG1223: Range<usize> = TAG123.end..TAG123.end + 1;
+    pub(super) const TAG: Range<usize> = EXPERIMENTAL.start..EXPERIMENTAL.start + 1;
+    pub(super) const DAG1223: Range<usize> = TAG.end..TAG.end + 1;
     pub(super) const MAG2: Range<usize> = DAG1223.end..DAG1223.end + 1;
 }
 
 mod theoretical {
     use super::*;
 
-    pub(super) const TAG123: Range<usize> = THEORETICAL.start..THEORETICAL.start + 1;
-    pub(super) const DAG1223: Range<usize> = TAG123.end..TAG123.end + 1;
+    pub(super) const TAG: Range<usize> = THEORETICAL.start..THEORETICAL.start + 1;
+    pub(super) const DAG1223: Range<usize> = TAG.end..TAG.end + 1;
     pub(super) const MAG2: Range<usize> = DAG1223.end..DAG1223.end + 1;
     pub(super) const DAG13: Range<usize> = MAG2.end..MAG2.end + 2;
 
-    // mod dag13 {
-    //     use super::*;
+    pub(super) mod dag13 {
+        use super::*;
 
-    //     pub(super) const DAG1223: Range<usize> = DAG13.start..DAG13.start + 1;
-    //     pub(super) const MAG2: Range<usize> = DAG1223.end..DAG1223.end + 1;
-    // }
+        pub(in super::super) const DAG1223: Range<usize> = DAG13.start..DAG13.start + 1;
+        pub(in super::super) const MAG2: Range<usize> = DAG1223.end..DAG1223.end + 1;
+    }
 }
 
 mod factors {
     use super::*;
 
-    pub(super) const EF: Range<usize> = FACTORS.start..FACTORS.start + 2;
-    pub(super) const SF: Range<usize> = EF.end..EF.end + 2;
+    pub(super) const EF: Range<usize> = FACTORS.start..FACTORS.start + 1;
+    pub(super) const SF: Range<usize> = EF.end..EF.end + 1;
 
-    // mod enrichment_factor {
-    //     use super::*;
+    pub(super) mod ef {
+        use super::*;
 
-    //     pub(super) const MAG2: Range<usize> = EF.start..EF.start + 1;
-    //     pub(super) const DAG13: Range<usize> = MAG2.end..MAG2.end + 1;
-    // }
+        pub(in super::super) const MAG2: Range<usize> = EF.start..EF.start + 1;
+    }
 
-    // mod selectivity_factor {
-    //     use super::*;
+    pub(super) mod sf {
+        use super::*;
 
-    //     pub(super) const MAG2: Range<usize> = SF.start..SF.start + 1;
-    //     pub(super) const DAG13: Range<usize> = MAG2.end..MAG2.end + 1;
-    // }
+        pub(in super::super) const MAG2: Range<usize> = SF.start..SF.start + 1;
+    }
 }

@@ -1,20 +1,18 @@
 use crate::{
-    app::{MAX_PRECISION, widgets::FloatValue},
+    app::{
+        MAX_PRECISION,
+        presets::CHRISTIE,
+        widgets::{FattyAcidWidget, FloatWidget},
+    },
     localization::localize,
-    special::fatty_acid::{COMMON, DisplayWithOptions, FattyAcid},
     utils::polars::DataFrameExt,
 };
 use egui::{
     ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, ScrollArea, Slider, Ui, Window,
 };
 use egui_phosphor::regular::{BROWSERS, GEAR, MATH_OPERATIONS};
-use polars::frame::DataFrame;
+use lipid::fatty_acid::polars::DataFrameExt as _;
 use serde::{Deserialize, Serialize};
-use std::sync::LazyLock;
-
-static FILE: &str = include_str!("../../../../christie.ron");
-pub(crate) static CHRISTIE: LazyLock<DataFrame> =
-    LazyLock::new(|| ron::de::from_str(FILE).expect("deserialize CHRISTIE"));
 
 /// Calculation control
 #[derive(Default, Deserialize, Serialize)]
@@ -50,22 +48,13 @@ impl Control {
             .show(ui.ctx(), |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        let fatty_acids = CHRISTIE["FA"].struct_().unwrap();
-                        let carbons = fatty_acids.field_by_name("Carbons").unwrap();
-                        let doubles = fatty_acids.field_by_name("Doubles").unwrap();
-                        let triples = fatty_acids.field_by_name("Triples").unwrap();
-                        for index in 0..CHRISTIE.height() {
-                            let carbons = carbons.u8().unwrap().get(index).unwrap();
-                            let doubles = doubles.list().unwrap().get_as_series(index).unwrap();
-                            let triples = triples.list().unwrap().get_as_series(index).unwrap();
-                            let fatty_acid = FattyAcid {
-                                carbons,
-                                doubles: doubles.i8().unwrap().to_vec_null_aware().left().unwrap(),
-                                triples: triples.i8().unwrap().to_vec_null_aware().left().unwrap(),
-                            };
-                            ui.label(format!("{:#}", fatty_acid.display(COMMON)));
-                            let value = CHRISTIE.f64("CHRISTIE").get(index);
-                            ui.add(FloatValue::new(value));
+                        for index in 0..CHRISTIE.1.height() {
+                            FattyAcidWidget::new(|| CHRISTIE.1.fatty_acid().get(index))
+                                .hover()
+                                .ui(ui)
+                                .unwrap();
+                            FloatWidget::new(move || Ok(CHRISTIE.1.f64("Christie").get(index)))
+                                .show(ui);
                             ui.end_row();
                         }
                     });
@@ -80,6 +69,7 @@ pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
+    pub(crate) reset: bool,
     pub(crate) sticky_columns: usize,
     pub(crate) truncate: bool,
 
@@ -98,6 +88,7 @@ impl Settings {
             percent: true,
             precision: 1,
             resizable: false,
+            reset: false,
             sticky_columns: 0,
             truncate: false,
             fraction: Fraction::AsIs,
@@ -118,8 +109,6 @@ impl Default for Settings {
 
 impl Settings {
     pub(crate) fn ui(&mut self, ui: &mut Ui) {
-        // ui.visuals_mut().collapsing_header_frame = true;
-        // ui.collapsing(RichText::new(localize!("settings")).heading(), |ui| {
         Grid::new("calculation").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));
@@ -153,12 +142,8 @@ impl Settings {
                 .show_ui(ui, |ui| {
                     ui.selectable_value(fraction, Fraction::AsIs, Fraction::AsIs.text())
                         .on_hover_text(Fraction::AsIs.hover_text());
-                    ui.selectable_value(fraction, Fraction::ToMole, Fraction::ToMole.text())
-                        .on_hover_text(Fraction::ToMole.hover_text());
-                    ui.selectable_value(fraction, Fraction::ToMass, Fraction::ToMass.text())
-                        .on_hover_text(Fraction::ToMass.hover_text());
-                    ui.selectable_value(fraction, Fraction::Pchelkin, Fraction::Pchelkin.text())
-                        .on_hover_text(Fraction::Pchelkin.hover_text());
+                    ui.selectable_value(fraction, Fraction::Fraction, Fraction::Fraction.text())
+                        .on_hover_text(Fraction::Fraction.hover_text());
                 })
                 .response
                 .on_hover_text(fraction.hover_text());
@@ -258,27 +243,22 @@ impl Christie {
 #[derive(Clone, Copy, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) enum Fraction {
     AsIs,
-    ToMole,
-    ToMass,
-    Pchelkin,
+    Fraction,
 }
 
 impl Fraction {
     pub(crate) fn text(self) -> String {
         match self {
             Self::AsIs => localize!("as_is"),
-            Self::ToMole => localize!("to_mole_fraction"),
-            Self::ToMass => localize!("to_mass_fraction"),
-            Self::Pchelkin => "Pchelkin".to_owned(),
+            Self::Fraction => "Pchelkin".to_owned(),
         }
     }
 
+    // col(name) / (col(name) * col("FA").fa().mass() / lit(10)).sum()
     pub(crate) fn hover_text(self) -> &'static str {
         match self {
             Self::AsIs => "S / ∑ S",
-            Self::ToMole => "S / M / ∑(S / M)",
-            Self::ToMass => "S * M / ∑(S * M)",
-            Self::Pchelkin => "Pchelkin",
+            Self::Fraction => "S / ∑(S * M)",
         }
     }
 }

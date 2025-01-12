@@ -19,7 +19,6 @@
 #![feature(impl_trait_in_assoc_type)]
 #![feature(slice_split_once)]
 #![feature(step_trait)]
-#![feature(vec_into_raw_parts)]
 #![feature(lazy_get)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
@@ -29,10 +28,10 @@ use app::App;
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::main]
 async fn main() -> eframe::Result<()> {
-    std::env::set_var("POLARS_FMT_MAX_COLS", "256");
-    // std::env::set_var("POLARS_FMT_MAX_ROWS", "32");
-    std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256");
-    std::env::set_var("POLARS_FMT_STR_LEN", "256");
+    unsafe { std::env::set_var("POLARS_FMT_MAX_COLS", "256") };
+    // unsafe { std::env::set_var("POLARS_FMT_MAX_ROWS", "32") };
+    unsafe { std::env::set_var("POLARS_FMT_TABLE_CELL_LIST_LEN", "256") };
+    unsafe { std::env::set_var("POLARS_FMT_STR_LEN", "256") };
 
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();

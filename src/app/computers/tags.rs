@@ -8,10 +8,10 @@ use crate::{
     },
 };
 
-/// Tags
-pub struct Tags(pub LazyFrame);
+/// Triacylglycerol
+pub struct Triacylglycerol(pub LazyFrame);
 
-impl Tags {
+impl Triacylglycerol {
     pub fn composition(self, settings: &Settings) -> PolarsResult<LazyFrame> {
         let mut lazy_frame = self.0;
         // Value
@@ -24,7 +24,7 @@ impl Tags {
             let expr = col("TAG").tag().compose(group.composition)?;
             lazy_frame = lazy_frame.with_column(
                 match group.composition {
-                    MC => col("TAG").tag().mass(*settings.adduct).round(1),
+                    MC => col("TAG").tag().mass(settings.adduct).round(1),
                     NC => col("TAG").tag().ecn(),
                     SC => expr.list().join(lit(""), false),
                     PSC => expr.list().join(lit(""), false),

@@ -3,19 +3,19 @@ use egui::{DragValue, TextEdit, Ui, style::Widgets};
 use egui_phosphor::regular::{MINUS, PLUS};
 
 /// Fatty acid widget
-pub(super) struct FattyAcidWidget<'a> {
-    pub(super) label: &'a mut String,
-    pub(super) fatty_acid: &'a mut FattyAcid,
+pub(crate) struct FattyAcidWidget<'a> {
+    pub(crate) label: &'a mut String,
+    pub(crate) fatty_acid: &'a mut FattyAcid,
 }
 
 impl<'a> FattyAcidWidget<'a> {
-    pub(super) fn new(label: &'a mut String, fatty_acid: &'a mut FattyAcid) -> Self {
+    pub(crate) fn new(label: &'a mut String, fatty_acid: &'a mut FattyAcid) -> Self {
         Self { label, fatty_acid }
     }
 }
 
 impl FattyAcidWidget<'_> {
-    pub(super) fn ui(self, ui: &mut Ui) -> Option<Change> {
+    pub(crate) fn ui(self, ui: &mut Ui) -> Option<Change> {
         ui.visuals_mut().widgets = if ui.style().visuals.dark_mode {
             Widgets::dark()
         } else {
@@ -94,7 +94,7 @@ impl FattyAcidWidget<'_> {
     }
 }
 
-pub(super) enum Change {
+pub(crate) enum Change {
     Label,
     Carbons,
     Doubles,

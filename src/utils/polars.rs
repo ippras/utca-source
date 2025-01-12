@@ -10,11 +10,6 @@ pub fn r#struct(name: &str) -> StructNameSpace {
     col(name).r#struct()
 }
 
-/// Select multiple columns by name and index.
-pub fn indexed_cols<T: Display + Step>(name: &str, range: Range<T>) -> Vec<Expr> {
-    range.map(|index| col(format!("{name}{index}"))).collect()
-}
-
 pub fn destruct(names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
     let mut names = names.into_iter();
     let Some(name) = names.next() else {

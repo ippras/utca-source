@@ -10,7 +10,6 @@ use egui::{
 };
 use egui_ext::LabeledSeparator;
 use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, FUNNEL, FUNNEL_X, GEAR, MINUS, PLUS};
-use ordered_float::OrderedFloat;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -23,14 +22,16 @@ use std::{
 pub(crate) struct Control {
     pub(crate) confirmed: Settings,
     pub(crate) unconfirmed: Settings,
+    pub(crate) index: Option<usize>,
     pub(crate) open: bool,
 }
 
 impl Control {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(index: Option<usize>) -> Self {
         Self {
             confirmed: Settings::new(),
             unconfirmed: Settings::new(),
+            index,
             open: false,
         }
     }
@@ -64,13 +65,14 @@ impl Control {
 }
 
 /// Composition settings
-#[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
+    pub(crate) resizable: bool,
     pub(crate) sticky_columns: usize,
 
-    pub(crate) adduct: OrderedFloat<f64>,
+    pub(crate) adduct: f64,
     pub(crate) method: Method,
     pub(crate) groups: VecDeque<Group>,
     pub(crate) show: Show,
@@ -86,8 +88,9 @@ impl Settings {
         Self {
             percent: true,
             precision: 1,
+            resizable: false,
             sticky_columns: 0,
-            adduct: OrderedFloat(0.0),
+            adduct: 0.0,
             method: Method::VanderWal,
             groups: VecDeque::new(),
             show: Show::new(),
@@ -160,25 +163,25 @@ impl Settings {
             ui.horizontal(|ui| {
                 let adduct = &mut self.adduct;
                 ui.add(
-                    DragValue::new(&mut adduct.0)
+                    DragValue::new(adduct)
                         .range(0.0..=f64::MAX)
                         .speed(1.0 / 10f64.powi(self.precision as _)),
                 )
                 .on_hover_text(format!("{adduct}"));
                 ComboBox::from_id_salt(ui.next_auto_id())
-                    .selected_text(match adduct.0 {
-                        adduct if adduct == H => "H",
-                        adduct if adduct == NH4 => "NH4",
-                        adduct if adduct == NA => "Na",
-                        adduct if adduct == LI => "Li",
+                    .selected_text(match *adduct {
+                        H => "H",
+                        NH4 => "NH4",
+                        NA => "Na",
+                        LI => "Li",
                         _ => "",
                     })
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut adduct.0, 0.0, "None");
-                        ui.selectable_value(&mut adduct.0, H, "H");
-                        ui.selectable_value(&mut adduct.0, NH4, "NH4");
-                        ui.selectable_value(&mut adduct.0, NA, "Na");
-                        ui.selectable_value(&mut adduct.0, LI, "Li");
+                        ui.selectable_value(adduct, 0.0, "None");
+                        ui.selectable_value(adduct, H, "H");
+                        ui.selectable_value(adduct, NH4, "NH4");
+                        ui.selectable_value(adduct, NA, "Na");
+                        ui.selectable_value(adduct, LI, "Li");
                     });
             });
             ui.end_row();
@@ -351,6 +354,22 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Hash for Settings {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.percent.hash(state);
+        self.precision.hash(state);
+        self.sticky_columns.hash(state);
+        self.adduct.ord().hash(state);
+        self.method.hash(state);
+        self.groups.hash(state);
+        self.show.hash(state);
+        self.sort.hash(state);
+        self.order.hash(state);
+        self.join.hash(state);
+        self.ddof.hash(state);
     }
 }
 

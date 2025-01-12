@@ -9,12 +9,12 @@ use std::{
 
 /// Composition plot
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct CompositionPlot<'a> {
+pub(crate) struct PlotView<'a> {
     pub(crate) data_frame: &'a DataFrame,
     pub(crate) settings: Settings,
 }
 
-impl<'a> CompositionPlot<'a> {
+impl<'a> PlotView<'a> {
     pub const fn new(data_frame: &'a DataFrame) -> Self {
         Self {
             data_frame,
@@ -23,7 +23,7 @@ impl<'a> CompositionPlot<'a> {
     }
 }
 
-impl CompositionPlot<'_> {
+impl PlotView<'_> {
     fn bar_chart(&self, column: &Column) -> PolarsResult<BarChart> {
         let key = column.struct_()?.field_by_name("Key")?;
         let value = column.struct_()?.field_by_name("Value")?;

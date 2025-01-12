@@ -1,148 +1,151 @@
-use self::{
-    control::Control,
-    table::{CalculationTable, Kind},
-};
+use self::{control::Control, table::TableView};
+use super::PaneDelegate;
 use crate::{
     app::computers::{CalculationComputed, CalculationKey},
     localization::localize,
-    utils::polars::{DataFrameExt, ExprExt as _},
 };
-use control::Fraction;
-use egui::{ComboBox, Id, RichText, Ui};
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, GEAR, INTERSECT_THREE};
+use egui::{CursorIcon, Id, Response, RichText, ScrollArea, Ui, menu::bar, util::hash};
+use egui_phosphor::regular::{
+    ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, GEAR, INTERSECT_THREE, LIST,
+};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+use utca::metadata::MetaDataFrame;
 
 /// Calculation pane
 #[derive(Deserialize, Serialize)]
 pub(crate) struct Pane {
-    pub(crate) source: DataFrame,
+    pub(crate) source: Vec<MetaDataFrame>,
     pub(crate) target: DataFrame,
     pub(crate) control: Control,
 }
 
 impl Pane {
-    pub const fn new(data_frame: DataFrame) -> Self {
+    pub const fn new(frames: Vec<MetaDataFrame>, index: usize) -> Self {
         Self {
-            source: data_frame,
+            source: frames,
             target: DataFrame::empty(),
-            control: Control::new(),
+            control: Control {
+                index: Some(index),
+                ..Control::new()
+            },
         }
     }
 
-    pub(crate) fn header(&mut self, ui: &mut Ui) {
-        ui.visuals_mut().button_frame = false;
-        let names = &self.source.get_column_names_str()[1..];
-        let selected_text = match self.control.index {
-            Some(index) => names[index],
-            None => "All",
-        };
-        ComboBox::from_id_salt(ui.next_auto_id())
-            .selected_text(selected_text)
-            .show_ui(ui, |ui| {
-                for index in 0..names.len() {
-                    ui.selectable_value(&mut self.control.index, Some(index), names[index]);
-                }
-                ui.selectable_value(&mut self.control.index, None, "All");
-            });
+    pub(crate) fn title(&self) -> String {
+        match self.control.index {
+            Some(index) => self.source[index].meta.title(),
+            None => localize!("calculation"),
+        }
+    }
+
+    fn header_content(&mut self, ui: &mut Ui) -> Response {
+        let mut response = ui
+            .heading(CALCULATOR)
+            .on_hover_text(localize!("calculation"));
+        response |= ui.heading(self.title());
+        response = response
+            .on_hover_text(format!("{:x}", self.hash()))
+            .on_hover_cursor(CursorIcon::Grab);
         ui.separator();
+        // List
+        ui.menu_button(RichText::new(LIST).heading(), |ui| {
+            let mut clicked = false;
+            for index in 0..self.source.len() {
+                clicked |= ui
+                    .selectable_value(
+                        &mut self.control.index,
+                        Some(index),
+                        self.source[index].meta.title(),
+                    )
+                    .clicked()
+            }
+            ui.selectable_value(&mut self.control.index, None, "Mean ± standard deviations");
+            if clicked {
+                ui.close_menu();
+            }
+        })
+        .response
+        .on_hover_text(localize!("list"));
+        ui.separator();
+        // Reset
+        if ui
+            .button(RichText::new(ARROWS_CLOCKWISE).heading())
+            .clicked()
+        {
+            self.control.settings.reset = true;
+        }
+        // Resize
         ui.toggle_value(
             &mut self.control.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
+        // Settings
         ui.toggle_value(&mut self.control.open, RichText::new(GEAR).heading());
+        ui.separator();
+        // Composition
         if ui
             .button(RichText::new(INTERSECT_THREE).heading())
             .on_hover_text(localize!("composition"))
             .clicked()
         {
-            let mut exprs = vec![col("Index"), col("FA")];
-            println!("self.source: {}", self.source);
-            println!("self.target: {}", self.target);
-            for &name in &self.source.get_column_names_str()[1..] {
-                exprs.push(col(name).destruct(["Calculated"]).alias(name));
+            let mut target = Vec::with_capacity(self.source.len());
+            for index in 0..self.source.len() {
+                let meta = self.source[index].meta.clone();
+                let data = ui.memory_mut(|memory| {
+                    memory
+                        .caches
+                        .cache::<CalculationComputed>()
+                        .get(CalculationKey {
+                            frames: &self.source,
+                            index: &Some(index),
+                            settings: &self.control.settings,
+                        })
+                });
+                target.push(MetaDataFrame::new(meta, data));
             }
-            ui.data_mut(|data| {
-                data.insert_temp(
-                    Id::new("Compose"),
-                    self.target.clone().lazy().select(exprs).collect().unwrap(),
-                )
-            });
+            ui.data_mut(|data| data.insert_temp(Id::new("Compose"), (target, self.control.index)));
         }
+        ui.separator();
+        response
     }
 
-    pub(crate) fn content(&mut self, ui: &mut Ui) {
-        ui.separator();
-        self.control.windows(ui);
+    fn body_content(&mut self, ui: &mut Ui) {
         self.target = ui.memory_mut(|memory| {
             memory
                 .caches
                 .cache::<CalculationComputed>()
                 .get(CalculationKey {
-                    data_frame: &self.source,
+                    frames: &self.source,
+                    index: &self.control.index,
                     settings: &self.control.settings,
                 })
         });
-        match self.control.index {
-            Some(index) => {
-                let data_frame = self
-                    .target
-                    .clone()
-                    .lazy()
-                    .select([
-                        col("Index"),
-                        col("Key").struct_().field_by_name("FA"),
-                        col("Values").struct_().field_by_index(index as _),
-                    ])
-                    .collect()
-                    .unwrap();
-                CalculationTable::new(data_frame, Kind::Single, &self.control.settings).ui(ui)
-            }
-            None => {
-                let data_frame = self
-                    .target
-                    .clone()
-                    .lazy()
-                    .select([
-                        col("Index"),
-                        col("Key").struct_().field_by_name("FA"),
-                        col("Values").struct_().field_by_name("Mean"),
-                    ])
-                    .collect()
-                    .unwrap();
-                CalculationTable::new(data_frame, Kind::Mean, &self.control.settings).ui(ui)
-            }
-        }
-        // let key = &self.target["Key"];
-        // let values = self.target.destruct("Values");
-        // match self.control.index {
-        //     Some(index) => CalculationTable::new(
-        //         df! {
-        //             "FA" => key.as_series().unwrap(),
-        //             "Value" => values[index].as_series().unwrap(),
-        //         }
-        //         .unwrap(),
-        //         Kind::Single,
-        //         &self.control.settings,
-        //     )
-        //     .ui(ui),
-        //     None => CalculationTable::new(
-        //         df! {
-        //             "FA" => key.as_series().unwrap(),
-        //             "Mean" => values["Mean"].as_series().unwrap(),
-        //         }
-        //         .unwrap(),
-        //         Kind::Mean,
-        //         &self.control.settings,
-        //     )
-        //     .ui(ui),
-        // }
+        TableView::new(&mut self.target, &self.control.settings).show(ui)
     }
 
-    pub(super) fn hash(&self) -> u64 {
-        // hash(&self.source)
-        0
+    fn hash(&self) -> u64 {
+        hash(&self.source)
+    }
+}
+
+impl PaneDelegate for Pane {
+    fn header(&mut self, ui: &mut Ui) -> Response {
+        bar(ui, |ui| {
+            ScrollArea::horizontal()
+                .show(ui, |ui| {
+                    ui.visuals_mut().button_frame = false;
+                    self.header_content(ui)
+                })
+                .inner
+        })
+        .inner
+    }
+
+    fn body(&mut self, ui: &mut Ui) {
+        self.control.windows(ui);
+        self.body_content(ui);
     }
 }
 

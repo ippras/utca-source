@@ -1,8 +1,6 @@
-use std::borrow::Cow;
-
-use polars::prelude::*;
-
 use crate::app::panes::composition::control::{Order, Settings, Sort};
+use polars::prelude::*;
+use std::borrow::Cow;
 
 /// Extension methods for [`LazyFrame`]
 pub trait LazyFrameExt: Sized {
@@ -80,13 +78,13 @@ impl Compositions {
             Sort::Key => self.0.sort_by_exprs(
                 [col("Compositions")
                     .struct_()
-                    .field_by_names([r#"^Composition\d$"#])],
+                    .field_by_name(r#"^Composition\d$"#)],
                 sort_options,
             ),
             Sort::Value => self.0.sort_by_exprs(
                 [col("Values")
                     .struct_()
-                    .field_by_names([r#"^Value\d$"#])
+                    .field_by_name(r#"^Value\d$"#)
                     .struct_()
                     .field_by_name("Mean")],
                 sort_options,
