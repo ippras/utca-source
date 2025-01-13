@@ -4,8 +4,7 @@ use self::table::TableView;
 use ahash::RandomState;
 use egui::{Context, Ui, Window, util::hash};
 use egui_phosphor::regular::GEAR;
-use polars::frame::DataFrame;
-use polars_io::{SerReader as _, ipc::IpcReader};
+use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
     hash::{BuildHasher, Hash as _, Hasher as _},

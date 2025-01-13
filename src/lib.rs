@@ -1,4 +1,4 @@
-#[cfg(temp)]
+#[cfg(test)]
 mod test {
     use super::{metadata::Metadata, *};
     use anyhow::Result;
@@ -13,18 +13,16 @@ mod test {
 
     #[test]
     fn convert_ron_to_ipc() -> Result<()> {
-        let path = Path::new(
-            r#"C:\Users\9\git\ippras\utca-configs\LunariaRediviva\2024-01-24\LunariaRediviva.3.3.utca.ron"#,
-        );
+        let path = Path::new("temp/Agilent.ron");
         let file = File::open(path)?;
         let mut data_frame: DataFrame = ron::de::from_reader(file)?;
         println!("data_frame: {data_frame}");
         let metadata = Metadata {
-            version: Some(Version::new(3, 3, 0)),
-            name: "Lunaria rediviva".into(),
+            version: Some(Version::new(0, 1, 0)),
+            name: "Agilent".into(),
             description: String::new(),
             authors: AUTHORS.clone(),
-            date: Some(NaiveDate::parse_from_str("2024-01-24", DATE_FORMAT)?),
+            date: Some(NaiveDate::parse_from_str("2025-01-01", DATE_FORMAT)?),
         };
         write(path.with_extension("ipc"), &mut data_frame, Some(metadata))?;
         Ok(())
@@ -32,22 +30,18 @@ mod test {
 
     #[test]
     fn read_ipc() -> Result<()> {
-        let path = "Lunaria rediviva___ 2.1.0.utca.ipc";
-        // let path = "Christie.0.1.0.ipc";
-        // let path = Path::new(
-        //     r#"C:\Users\9\git\ippras\utca-configs\LunariaRediviva\2024-01-24\LunariaRediviva.1.1.utca.ipc"#,
-        // );
+        let path = Path::new("temp/Agilent source 0.1.0.ipc");
+        // let path = Path::new("temp/Agilent distance 0.1.0.ipc");
         let (data_frame, metadata) = read(path)?;
         println!("metadata: {metadata:#?}");
+        println!("data_frame: {:#?}", data_frame.schema());
         println!("data_frame: {data_frame}");
         Ok(())
     }
 
     #[test]
     fn convert_fatty_acid() -> Result<()> {
-        let path = Path::new(
-            r#"C:\Users\9\git\ippras\utca-configs\LunariaRediviva\2024-01-24\LunariaRediviva.1.1.utca.ron"#,
-        );
+        let path = Path::new("temp/Agilent.ron");
         let (mut data_frame, metadata) = read(path)?;
         println!("data_frame: {data_frame}");
         let mut lazy_frame = data_frame.lazy();
@@ -70,9 +64,13 @@ mod test {
             ])
             .alias("FattyAcid")])
             .select([col("FattyAcid"), col("Christie")]);
-        data_frame = lazy_frame.with_row_index("Index", None).collect().unwrap();
+        data_frame = lazy_frame.with_row_index("Index", None).collect()?;
         println!("data_frame: {data_frame}");
-        write(path.with_file_name("out.ipc"), &mut data_frame, metadata)?;
+        write(
+            path.with_file_name("temp/out.ipc"),
+            &mut data_frame,
+            metadata,
+        )?;
         Ok(())
     }
 

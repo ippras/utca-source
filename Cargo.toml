@@ -69,7 +69,6 @@ polars = { version = "0.45.1", default-features = false, features = [
     # "range",
     # "semi_anti_join",
 ] }
-polars-io = "0.45.1"
 radix_trie = "0.2.1"
 ron = "0.8.1"
 semver = { version = "1.0.24", features = ["serde"] }

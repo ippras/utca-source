@@ -1,5 +1,4 @@
-use polars::frame::DataFrame;
-use polars_io::{SerReader as _, ipc::IpcReader};
+use polars::prelude::*;
 use std::{io::Cursor, sync::LazyLock};
 use utca::metadata::{IpcReaderExt as _, Metadata};
 
