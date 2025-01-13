@@ -201,12 +201,10 @@ impl Pane {
                             ui.label("Authors");
                         });
                         row.col(|ui| {
-                            let mut authors = meta.authors.join(", ");
+                            let mut authors = meta.authors.join(",");
                             if ui.text_edit_singleline(&mut authors).changed() {
-                                meta.authors = authors
-                                    .split(",")
-                                    .map(|author| author.trim().to_owned())
-                                    .collect()
+                                meta.authors =
+                                    authors.split(",").map(|author| author.to_owned()).collect()
                             }
                             // for author in &mut meta.authors {
                             //     ui.text_edit_singleline(author);

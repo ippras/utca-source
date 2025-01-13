@@ -18,7 +18,7 @@ pub(crate) struct Cell<'a> {
 
 impl Widget for Cell<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let r#struct = self.column.r#struct();
+        let r#struct = self.column.struct_().unwrap();
         let fields = r#struct.fields_as_series();
         let values = &fields[0..fields.len() - 2];
         let species = r#struct.field_by_name("Species").unwrap();

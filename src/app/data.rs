@@ -88,39 +88,3 @@ impl Widget for &mut Data {
         response
     }
 }
-
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
-pub(crate) enum Format {
-    #[default]
-    Bin,
-    Parquet,
-    Ron,
-}
-
-pub(crate) fn save(path: impl AsRef<Path>, format: Format, data_frame: DataFrame) -> Result<()> {
-    println!("data_frame: {:#?}", data_frame.schema());
-    match format {
-        Format::Bin => {
-            let contents = bincode::serialize(&data_frame)?;
-            write(path, contents)?;
-        }
-        Format::Parquet => {
-            // let mut file = File::create(path)?;
-            // ParquetWriter::new(&mut file).finish(&mut data_frame)?;
-        }
-        Format::Ron => {
-            let file = std::fs::File::create(path)?;
-            ron::ser::to_writer_pretty(
-                file,
-                &data_frame,
-                PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME),
-            )?;
-            // let contents = ron::ser::to_string_pretty(
-            //     &data_frame,
-            //     PrettyConfig::default().extensions(Extensions::IMPLICIT_SOME),
-            // )?;
-            // write(path, contents)?;
-        }
-    }
-    Ok(())
-}

@@ -6,10 +6,6 @@ use std::{
     ops::Range,
 };
 
-pub fn r#struct(name: &str) -> StructNameSpace {
-    col(name).r#struct()
-}
-
 pub fn destruct(names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
     let mut names = names.into_iter();
     let Some(name) = names.next() else {
@@ -17,7 +13,7 @@ pub fn destruct(names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
     };
     let mut expr = col(PlSmallStr::from(name.as_ref()));
     for name in names {
-        expr = expr.r#struct().field_by_name(name.as_ref());
+        expr = expr.struct_().field_by_name(name.as_ref());
     }
     expr
 }
@@ -100,25 +96,13 @@ impl DataFrameExt for DataFrame {
 
 /// Extension methods for [`Column`]
 pub trait ColumnExt {
-    fn destruct(&self) -> DataFrame;
-
-    fn r#struct(&self) -> &StructChunked;
-
-    fn try_struct(&self) -> PolarsResult<&StructChunked>;
+    // fn destruct(&self) -> DataFrame;
 }
 
 impl ColumnExt for Column {
-    fn destruct(&self) -> DataFrame {
-        self.r#struct().clone().unnest()
-    }
-
-    fn r#struct(&self) -> &StructChunked {
-        self.try_struct().unwrap()
-    }
-
-    fn try_struct(&self) -> PolarsResult<&StructChunked> {
-        self.struct_()
-    }
+    // fn destruct(&self) -> DataFrame {
+    //     self.struct_().clone().unnest()
+    // }
 }
 
 /// Extension methods for [`Expr`]
@@ -128,8 +112,6 @@ pub trait ExprExt {
     fn normalize(self) -> Expr;
 
     fn normalize_if(self, normalize: bool) -> Expr;
-
-    fn r#struct(self) -> StructNameSpace;
 
     fn destruct(self, names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr;
 
@@ -161,13 +143,9 @@ impl ExprExt for Expr {
         if normalize { self.normalize() } else { self }
     }
 
-    fn r#struct(self) -> StructNameSpace {
-        self.struct_()
-    }
-
     fn destruct(mut self, names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
         for name in names {
-            self = self.r#struct().field_by_name(name.as_ref());
+            self = self.struct_().field_by_name(name.as_ref());
         }
         self
     }
