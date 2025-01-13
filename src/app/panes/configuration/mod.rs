@@ -10,15 +10,14 @@ use egui::{
 };
 use egui_extras::{Column, DatePickerButton, TableBuilder};
 use egui_phosphor::regular::{
-    ARROW_FAT_LINE_UP, ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL,
-    PENCIL, TAG, TRASH,
+    ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL, PENCIL, TAG, TRASH,
 };
 use polars::prelude::*;
 use semver::Version;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, sync::LazyLock};
+use std::sync::LazyLock;
 use tracing::error;
-use utca::metadata::{IpcWriterExt as _, MetaDataFrame};
+use utca::metadata::MetaDataFrame;
 
 pub(crate) static SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
     Schema::from_iter([
@@ -402,7 +401,7 @@ impl Pane {
 
     fn save(&mut self) -> Result<()> {
         let name = format!("{}.utca.ipc", self.title());
-        save(&name, &mut self.frames[self.control.index]);
+        save(&name, &mut self.frames[self.control.index])?;
         Ok(())
     }
 }

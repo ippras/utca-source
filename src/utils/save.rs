@@ -24,7 +24,7 @@ mod web {
     use anyhow::{Result, anyhow};
     use eframe::{
         wasm_bindgen::{JsCast, JsValue, prelude::*},
-        web_sys::{Blob, File, FilePropertyBag, HtmlAnchorElement, Url, window},
+        web_sys::{File, FilePropertyBag, HtmlAnchorElement, Url, window},
     };
     use gloo_utils::errors::JsError;
     use js_sys::{Array, ArrayBuffer, Uint8Array};
