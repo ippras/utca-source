@@ -7,22 +7,21 @@
 //! `rustup target add wasm32-unknown-unknown`
 //! `trunk build --release --public-url utca`
 //!
-//! [Determination of the Positional-Species Composition of Plant Reserve
-//! Triacylglycerols by Partial Chemical
-//! Deacylation](https://sci-hub.ru/10.1023/A:1016732708350)
+//! [Determination of the Positional-Species Composition of Plant Reserve Triacylglycerols by Partial Chemical Deacylation](https://sci-hub.ru/10.1023/A:1016732708350)
 
-#![feature(anonymous_lifetime_in_impl_trait)]
-#![feature(associated_type_defaults)]
-#![feature(decl_macro)]
-#![feature(float_next_up_down)]
-#![feature(hash_extract_if)]
-#![feature(impl_trait_in_assoc_type)]
-#![feature(slice_split_once)]
-#![feature(step_trait)]
-#![feature(lazy_get)]
+// #![feature(anonymous_lifetime_in_impl_trait)]
+// #![feature(associated_type_defaults)]
+// #![feature(float_next_up_down)]
+// #![feature(hash_extract_if)]
+// #![feature(impl_trait_in_assoc_type)]
+// #![feature(slice_split_once)]
+// #![feature(step_trait)]
+// #![feature(lazy_get)]
+
+// #![feature(decl_macro)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use app::App;
+use utca::App;
 
 // When compiling natively
 #[cfg(not(target_arch = "wasm32"))]
@@ -87,10 +86,10 @@ fn main() {
     });
 }
 
-mod app;
-mod r#const;
-mod localization;
-mod properties;
-mod special;
-mod utils;
-mod widgets;
+// mod app;
+// mod r#const;
+// mod localization;
+// mod properties;
+// mod special;
+// mod utils;
+// mod widgets;

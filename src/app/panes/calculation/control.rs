@@ -4,7 +4,7 @@ use crate::{
         presets::CHRISTIE,
         widgets::{FattyAcidWidget, FloatWidget},
     },
-    localization::localize,
+    localize,
     utils::polars::DataFrameExt,
 };
 use egui::{
@@ -48,12 +48,12 @@ impl Control {
             .show(ui.ctx(), |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        for index in 0..CHRISTIE.1.height() {
-                            FattyAcidWidget::new(|| CHRISTIE.1.fatty_acid().get(index))
+                        for index in 0..CHRISTIE.data.height() {
+                            FattyAcidWidget::new(|| CHRISTIE.data.fatty_acid().get(index))
                                 .hover()
                                 .ui(ui)
                                 .unwrap();
-                            FloatWidget::new(move || Ok(CHRISTIE.1.f64("Christie").get(index)))
+                            FloatWidget::new(move || Ok(CHRISTIE.data.f64("Christie").get(index)))
                                 .show(ui);
                             ui.end_row();
                         }

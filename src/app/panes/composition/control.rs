@@ -1,7 +1,7 @@
 use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
-    localization::localize,
+    localize,
     special::composition::{Composition, MC, NC, PSC, PTC, PUC, SC, SSC, STC, SUC, TC, UC},
 };
 use egui::{

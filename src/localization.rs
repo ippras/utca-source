@@ -2,31 +2,49 @@ use self::locales::{EN, RU};
 use egui::{Response, RichText, Ui};
 use egui_phosphor::regular::TRANSLATE;
 use fluent::{FluentResource, concurrent::FluentBundle};
-use fluent_content::Content;
 use std::sync::{Arc, LazyLock, RwLock};
 use tracing::{Level, enabled, error};
 use unic_langid::LanguageIdentifier;
 
 const SIZE: f32 = 32.0;
 
-pub(crate) macro lowercase($key:expr) {
-    LOCALIZATION.read().unwrap().0.content($key)
+#[macro_export]
+macro_rules! lowercase {
+    ($key:expr) => {{
+        use fluent_content::Content;
+
+        crate::localization::LOCALIZATION
+            .read()
+            .unwrap()
+            .0
+            .content($key)
+    }};
 }
 
-pub(crate) macro localize($key:literal) {
-    match LOCALIZATION.read().unwrap().0.content($key) {
-        Some(content) => {
-            let mut chars = content.chars();
-            chars
-                .next()
-                .map(char::to_uppercase)
-                .into_iter()
-                .flatten()
-                .chain(chars)
-                .collect()
+#[macro_export]
+macro_rules! localize {
+    ($key:literal) => {{
+        use fluent_content::Content;
+
+        match crate::localization::LOCALIZATION
+            .read()
+            .unwrap()
+            .0
+            .content($key)
+        {
+            Some(content) => {
+                let mut chars = content.chars();
+                chars
+                    .next()
+                    .map(char::to_uppercase)
+                    .into_iter()
+                    .flatten()
+                    .chain(chars)
+                    .collect()
+            }
+            None => $key.to_uppercase(),
         }
-        None => $key.to_uppercase(),
-    }
+    }};
 }
 
 pub(crate) static LOCALIZATION: LazyLock<RwLock<Localization>> =
@@ -34,7 +52,7 @@ pub(crate) static LOCALIZATION: LazyLock<RwLock<Localization>> =
 
 /// Localization
 #[derive(Clone)]
-pub(crate) struct Localization(Arc<FluentBundle<FluentResource>>);
+pub(crate) struct Localization(pub(crate) Arc<FluentBundle<FluentResource>>);
 
 impl Localization {
     fn new(locale: LanguageIdentifier) -> Self {
@@ -106,8 +124,10 @@ mod locales {
 }
 
 mod sources {
-    macro source($path:literal) {
-        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $path))
+    macro_rules! source {
+        ($path:literal) => {
+            include_str!(concat!(env!("CARGO_MANIFEST_DIR"), $path))
+        };
     }
 
     pub(super) const EN: &[&str] = &[

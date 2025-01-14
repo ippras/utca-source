@@ -1,8 +1,9 @@
-use crate::{
-    localization::{localize, lowercase},
-    special::fatty_acid::FattyAcid,
-};
+use crate::{localize, lowercase};
 use egui::{Grid, Response, Ui, Widget};
+use lipid::fatty_acid::{
+    FattyAcid,
+    display::{DisplayWithOptions, ID},
+};
 
 /// Names
 pub(crate) struct Names<'a> {
@@ -19,7 +20,7 @@ impl Widget for Names<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
         let response = ui.heading(localize!("names"));
         Grid::new(ui.next_auto_id()).show(ui, |ui| {
-            let id = self.fatty_acid.id();
+            let id = self.fatty_acid.display(ID);
             if let Some(abbreviation) = lowercase!(&format!("fa_{id:#02}.abbreviation")) {
                 ui.label(localize!("abbreviation"));
                 ui.label(abbreviation);

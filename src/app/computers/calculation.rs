@@ -3,8 +3,7 @@ use crate::{
         panes::calculation::control::{Fraction, From, Settings},
         presets::CHRISTIE,
     },
-    special::polars::SchemaExt,
-    utils::polars::ExprExt as _,
+    utils::polars::{ExprExt as _, SchemaExt},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{
@@ -20,9 +19,9 @@ use lipid::{
     },
     prelude::*,
 };
+use metadata::MetaDataFrame;
 use polars::prelude::*;
 use std::hash::{Hash, Hasher};
-use utca::metadata::MetaDataFrame;
 
 /// Calculation computed
 pub(crate) type Computed = FrameCache<Value, Computer>;
@@ -149,7 +148,7 @@ fn christie(lazy_frame: LazyFrame) -> LazyFrame {
     lazy_frame
         .unnest(["FattyAcid"])
         .join(
-            CHRISTIE.1.clone().lazy().select([
+            CHRISTIE.data.clone().lazy().select([
                 col("FattyAcid").struct_().field_by_name("*"),
                 col("Christie"),
             ]),

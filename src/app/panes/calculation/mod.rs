@@ -2,15 +2,15 @@ use self::{control::Control, table::TableView};
 use super::PaneDelegate;
 use crate::{
     app::computers::{CalculationComputed, CalculationKey},
-    localization::localize,
+    localize,
 };
 use egui::{CursorIcon, Id, Response, RichText, ScrollArea, Ui, menu::bar, util::hash};
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, GEAR, INTERSECT_THREE, LIST,
 };
+use metadata::MetaDataFrame;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use utca::metadata::MetaDataFrame;
 
 /// Calculation pane
 #[derive(Deserialize, Serialize)]

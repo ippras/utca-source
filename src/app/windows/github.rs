@@ -1,4 +1,4 @@
-use crate::{localization::localize, utils::spawn};
+use crate::{localize, utils::spawn};
 use anyhow::{Error, Result};
 use base64::prelude::*;
 use egui::{

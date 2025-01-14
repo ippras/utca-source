@@ -3,12 +3,12 @@ use self::{
     panes::{Pane, behavior::Behavior, configuration::Pane as ConfigurationPane},
     windows::{About, Github},
 };
-use crate::localization::{UiExt, localize};
+use crate::{localization::UiExt, localize};
 use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Memory,
-    Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Order,
+    RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
     util::IdTypeMap, warn_if_debug_build,
 };
 use egui_ext::{HoveredFileExt, LightDarkButton};
@@ -16,12 +16,13 @@ use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
     regular::{
-        ARROWS_CLOCKWISE, CLOUD_ARROW_DOWN, FLOPPY_DISK, GEAR, GRID_FOUR, INFO, PLUS,
-        SIDEBAR_SIMPLE, SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABLE, TABS, TRASH,
+        ARROWS_CLOCKWISE, CLOUD_ARROW_DOWN, GEAR, GRID_FOUR, INFO, PLUS, SIDEBAR_SIMPLE,
+        SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABLE, TABS, TRASH,
     },
 };
 use egui_tiles::{ContainerKind, Tile, Tree};
 use egui_tiles_ext::{TreeExt as _, VERTICAL};
+use metadata::{MetaDataFrame, Metadata};
 use panes::configuration::SCHEMA;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -34,7 +35,6 @@ use std::{
     time::Duration,
 };
 use tracing::{error, info, trace};
-use utca::metadata::{MetaDataFrame, Metadata};
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;

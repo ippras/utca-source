@@ -4,7 +4,7 @@ use crate::{
         panes::MARGIN,
         widgets::{FattyAcidWidget, FloatWidget},
     },
-    localization::localize,
+    localize,
     utils::polars::DataFrameExt as _,
 };
 use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};

@@ -1,4 +1,4 @@
-use crate::{app::MAX_PRECISION, localization::localize};
+use crate::{app::MAX_PRECISION, localize};
 use egui::{Grid, RichText, Slider, Ui, Window};
 use egui_phosphor::regular::GEAR;
 use serde::{Deserialize, Serialize};

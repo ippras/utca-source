@@ -6,9 +6,9 @@ pub(crate) use self::web::save;
 #[cfg(not(target_arch = "wasm32"))]
 mod native {
     use anyhow::Result;
+    use metadata::{IpcWriterExt as _, MetaDataFrame};
     use polars::prelude::*;
     use std::fs::File;
-    use utca::metadata::{IpcWriterExt as _, MetaDataFrame};
 
     pub(crate) fn save(name: &str, frame: &mut MetaDataFrame) -> Result<()> {
         let file = File::create(name)?;

@@ -1,6 +1,6 @@
 use crate::{
     app::widgets::FloatWidget,
-    localization::localize,
+    localize,
     utils::polars::{ColumnExt, SeriesExt},
 };
 use egui::{Align2, Color32, Grid, Response, RichText, ScrollArea, TextStyle, Ui, Widget};

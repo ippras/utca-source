@@ -10,10 +10,9 @@ use crate::{
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{
     prelude::*,
-    triacylglycerol::polars::expr::{
-        ExprExt as _, Options as StereospecificOptions, mass::Mass as _,
-    },
+    triacylglycerol::polars::expr::{ExprExt as _, mass::Mass as _},
 };
+use metadata::MetaDataFrame;
 use polars::{
     lazy::dsl::{max_horizontal, min_horizontal, sum_horizontal},
     prelude::*,
@@ -25,7 +24,6 @@ use std::{
     hash::{Hash, Hasher},
     process::exit,
 };
-use utca::metadata::MetaDataFrame;
 
 /// Composition computed
 pub(crate) type Computed = FrameCache<Value, Computer>;
@@ -428,31 +426,31 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
             match group.composition {
                 MC => col("FattyAcid").tag().mass(lit(settings.adduct)).round(1),
                 NC => col("FattyAcid").tag().ecn(),
-                UC => col("FattyAcid").tag().unsaturation(),
+                SC => col("Label")
+                    .tag()
+                    .non_stereospecific(identity, PermutationOptions::default())?
+                    .alias("SC"),
+                PSC => col("Label")
+                    .tag()
+                    .positional(identity, PermutationOptions::default())
+                    .alias("PSC"),
+                SSC => col("Label").alias("SSC"),
                 TC => col("FattyAcid")
                     .tag()
                     .non_stereospecific(
                         |expr| expr.fa().is_saturated(),
-                        StereospecificOptions::default().map(true),
+                        PermutationOptions::default().map(true),
                     )?
                     .alias("TC"),
                 PTC => col("FattyAcid")
                     .tag()
                     .positional(
                         |expr| expr.fa().is_saturated(),
-                        StereospecificOptions::default().map(true),
+                        PermutationOptions::default().map(true),
                     )
                     .alias("PTC"),
                 STC => col("FattyAcid").tag().map(|expr| expr.fa().is_saturated()),
-                SC => col("Label")
-                    .tag()
-                    .non_stereospecific(identity, StereospecificOptions::default())?
-                    .alias("SC"),
-                PSC => col("Label")
-                    .tag()
-                    .positional(identity, StereospecificOptions::default())
-                    .alias("PSC"),
-                SSC => col("Label").alias("SSC"),
+                UC => col("FattyAcid").tag().unsaturation(),
                 _ => unimplemented!(),
             }
             .alias(format!("Composition{index}")),

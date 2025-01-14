@@ -3,7 +3,7 @@ use self::{
     table::{Event, TableView},
 };
 use super::PaneDelegate;
-use crate::{localization::localize, utils::save};
+use crate::{localize, utils::save};
 use anyhow::Result;
 use egui::{
     CursorIcon, DragValue, Grid, Id, Response, RichText, ScrollArea, Ui, menu::bar, util::hash,
@@ -12,12 +12,12 @@ use egui_extras::{Column, DatePickerButton, TableBuilder};
 use egui_phosphor::regular::{
     ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL, PENCIL, TAG, TRASH,
 };
+use metadata::MetaDataFrame;
 use polars::prelude::*;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 use tracing::error;
-use utca::metadata::MetaDataFrame;
 
 pub(crate) static SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
     Schema::from_iter([

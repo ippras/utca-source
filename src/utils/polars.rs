@@ -2,8 +2,8 @@ use polars::prelude::*;
 use std::{
     borrow::{Borrow, Cow},
     fmt::Display,
-    iter::Step,
     ops::Range,
+    // iter::Step,
 };
 
 pub fn destruct(names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
@@ -152,6 +152,17 @@ impl ExprExt for Expr {
 
     fn suffix(self, suffix: &str) -> Expr {
         self.name().suffix(suffix)
+    }
+}
+
+/// Extension methods for [`Schema`]
+pub trait SchemaExt {
+    fn names(&self) -> Vec<Expr>;
+}
+
+impl SchemaExt for Schema {
+    fn names(&self) -> Vec<Expr> {
+        self.iter_names_cloned().map(col).collect()
     }
 }
 

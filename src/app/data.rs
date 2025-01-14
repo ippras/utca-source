@@ -1,22 +1,10 @@
-use crate::localization::localize;
-use anyhow::Result;
+use crate::localize;
 use egui::{Grid, Label, Response, Sides, Ui, Widget};
 use egui_dnd::dnd;
 use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
-use polars::prelude::*;
-use ron::{extensions::Extensions, ser::PrettyConfig};
+use metadata::MetaDataFrame;
 use serde::{Deserialize, Serialize};
-use std::{
-    borrow::Cow,
-    fmt::{self, Display, Formatter},
-    fs::write,
-    hash::{Hash, Hasher},
-    io::Read,
-    iter::zip,
-    ops::Deref,
-    path::Path,
-};
-use utca::metadata::{IpcReaderExt as _, MetaDataFrame, Metadata};
+use std::iter::zip;
 
 /// Data
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]

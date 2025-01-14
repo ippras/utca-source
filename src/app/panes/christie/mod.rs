@@ -1,9 +1,9 @@
-use crate::app::presets::CHRISTIE;
-
 use self::table::TableView;
+use crate::app::presets::CHRISTIE;
 use ahash::RandomState;
 use egui::{Context, Ui, Window, util::hash};
 use egui_phosphor::regular::GEAR;
+use metadata::{IpcReaderExt as _, Metadata};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -11,7 +11,6 @@ use std::{
     io::Cursor,
     sync::LazyLock,
 };
-use utca::metadata::{IpcReaderExt as _, Metadata};
 
 /// Christie pane
 #[derive(Default, Deserialize, Serialize)]
@@ -31,7 +30,7 @@ impl Pane {
     pub(crate) fn content(&mut self, ui: &mut Ui) {
         ui.separator();
         // self.control.windows(ui);
-        TableView::new(&CHRISTIE.1).ui(ui);
+        TableView::new(&CHRISTIE.data).ui(ui);
         // if let Err(error) = self.delete_row(row) {
         //     error!(%error);
         // }
@@ -40,7 +39,7 @@ impl Pane {
     pub(super) fn hash(&self) -> u64 {
         let hash_builder = RandomState::with_seeds(1, 2, 3, 4);
         let mut hasher = hash_builder.build_hasher();
-        CHRISTIE.0.hash(&mut hasher);
+        CHRISTIE.meta.hash(&mut hasher);
         hasher.finish()
 
         // let state = ahash::RandomState::with_seeds(1, 2, 3, 4);

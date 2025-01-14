@@ -2,14 +2,14 @@ use self::{control::Control, table::TableView};
 use super::PaneDelegate;
 use crate::{
     app::computers::{CompositionComputed, CompositionKey},
-    localization::localize,
+    localize,
 };
 use egui::{CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, menu::bar, util::hash};
 use egui_phosphor::regular::{ARROWS_HORIZONTAL, CHART_BAR, GEAR, INTERSECT_THREE, LIST};
+use metadata::MetaDataFrame;
 use plot::PlotView;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use utca::metadata::MetaDataFrame;
 
 /// Composition pane
 #[derive(Default, Deserialize, Serialize)]

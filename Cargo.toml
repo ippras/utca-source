@@ -34,6 +34,7 @@ itertools = "0.14.0"
 lipid = { git = "https://github.com/ippras/lipid" }
 log = "0.4.22"
 maplit = "1.0.2"
+metadata = { git = "https://github.com/ippras/metadata" }
 molecule = { git = "https://github.com/ippras/molecule" }
 num = "0.4.3"
 polars = { version = "0.45.1", default-features = false, features = [
@@ -70,7 +71,6 @@ polars = { version = "0.45.1", default-features = false, features = [
     # "semi_anti_join",
 ] }
 radix_trie = "0.2.1"
-ron = "0.8.1"
 semver = { version = "1.0.24", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive", "std"] }
 thiserror = "2.0.11"

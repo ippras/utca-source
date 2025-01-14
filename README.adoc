@@ -56,25 +56,6 @@ integrity:
 * `Изображения и другие файлы, сохраненные в кеше`
 * `Удалить данные`
 
-"abs",
-"concat_str",
-"cross_join",
-"cum_agg",
-"diagonal_concat",
-"dtype-array",
-"dtype-i8",
-"dtype-struct",
-"dtype-u8",
-"is_in",
-"lazy",
-"list_any_all",
-"list_count",
-"list_eval",
-"regex",
-"round_series",
-"serde-lazy",
-"strings",
-
 == Doc
 
 [Mass fraction](https://en.wikipedia.org/wiki/Mole_fraction#Mass_fraction)

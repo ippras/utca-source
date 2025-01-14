@@ -1,17 +1,17 @@
-use crate::special::acylglycerol::Stereospecificity;
+use lipid::triacylglycerol::Stereospecificity;
 use serde::{Deserialize, Serialize};
 
-pub const UC: Composition = Composition {
+pub const MC: Composition = Composition {
     stereospecificity: None,
-    kind: Kind::Unsaturation,
+    kind: Kind::Mass,
 };
-pub const PUC: Composition = Composition {
+pub const PMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
-    kind: Kind::Unsaturation,
+    kind: Kind::Mass,
 };
-pub const SUC: Composition = Composition {
+pub const SMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
-    kind: Kind::Unsaturation,
+    kind: Kind::Mass,
 };
 pub const NC: Composition = Composition {
     stereospecificity: None,
@@ -24,18 +24,6 @@ pub const PNC: Composition = Composition {
 pub const SNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Ecn,
-};
-pub const MC: Composition = Composition {
-    stereospecificity: None,
-    kind: Kind::Mass,
-};
-pub const PMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    kind: Kind::Mass,
-};
-pub const SMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
-    kind: Kind::Mass,
 };
 pub const SC: Composition = Composition {
     stereospecificity: None,
@@ -60,6 +48,18 @@ pub const PTC: Composition = Composition {
 pub const STC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Type,
+};
+pub const UC: Composition = Composition {
+    stereospecificity: None,
+    kind: Kind::Unsaturation,
+};
+pub const PUC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Positional),
+    kind: Kind::Unsaturation,
+};
+pub const SUC: Composition = Composition {
+    stereospecificity: Some(Stereospecificity::Stereo),
+    kind: Kind::Unsaturation,
 };
 
 /// Composition
