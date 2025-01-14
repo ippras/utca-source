@@ -84,7 +84,7 @@ impl TableView<'_> {
             (row, FA) => {
                 FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
                     .hover()
-                    .ui(ui)?;
+                    .try_show(ui)?;
             }
             (row, FACTOR) => {
                 FloatWidget::new(|| Ok(self.data_frame["Christie"].f64()?.get(row)))

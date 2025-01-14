@@ -1,6 +1,4 @@
-use egui::{
-    Align, DragValue, Grid, InnerResponse, Layout, Sense, Ui, Widget, style::Widgets, vec2,
-};
+use egui::{Align, DragValue, Grid, InnerResponse, Layout, Ui, Widget, style::Widgets, vec2};
 use lipid::fatty_acid::{
     FattyAcid, FattyAcidExt as _, Isomerism, Unsaturated, Unsaturation,
     display::{COMMON, DisplayWithOptions, ID},
@@ -8,7 +6,7 @@ use lipid::fatty_acid::{
 use polars::prelude::*;
 use std::cmp::Ordering;
 
-use crate::{localize, try_localize};
+use crate::localize;
 
 /// Fatty acid widget
 pub(crate) struct FattyAcidWidget<'a> {
@@ -39,24 +37,21 @@ impl<'a> FattyAcidWidget<'a> {
         }
     }
 
-    pub(crate) fn names(self, names: bool) -> Self {
-        Self { names, ..self }
+    pub(crate) fn names(self) -> Self {
+        Self {
+            names: true,
+            ..self
+        }
     }
 }
 
 impl FattyAcidWidget<'_> {
     pub(crate) fn try_show(self, ui: &mut Ui) -> PolarsResult<InnerResponse<Option<FattyAcid>>> {
-        let Some(fatty_acid) = &(self.value)()? else {
-            return Ok(InnerResponse::new(
-                None,
-                ui.allocate_response(Default::default(), Sense::hover()),
-            ));
+        let fatty_acid = (self.value)()?;
+        let text = match &fatty_acid {
+            Some(fatty_acid) => &format!("{:#}", fatty_acid.display(COMMON)),
+            None => "",
         };
-        // let text = match &fatty_acid {
-        //     Some(fatty_acid) => &format!("{:#}", fatty_acid.display(COMMON)),
-        //     None => "",
-        // };
-        let text = &format!("{:#}", fatty_acid.display(COMMON));
         let mut inner = None;
         let mut response = if self.editable {
             ui.add_sized(
@@ -70,7 +65,7 @@ impl FattyAcidWidget<'_> {
                         };
                         ui.visuals_mut().widgets.inactive.weak_bg_fill =
                             widgets.active.weak_bg_fill;
-                        let mut fatty_acid = fatty_acid.clone();
+                        let mut fatty_acid = fatty_acid.clone().unwrap_or_default();
                         Grid::new(ui.next_auto_id()).show(ui, |ui| {
                             // Carbons
                             ui.label("Carbons");
@@ -187,26 +182,18 @@ impl FattyAcidWidget<'_> {
                 response = response.on_hover_ui(|ui| {
                     ui.heading(localize!("names"));
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        let id = fatty_acid.display(ID);
-                        if let Some(abbreviation) = try_localize!(&format!("{id:#}.abbreviation")) {
-                            ui.label(localize!("abbreviation"));
-                            ui.label(abbreviation);
-                            ui.end_row();
-                        }
+                        let id = fatty_acid.unwrap_or_default().display(ID);
+                        ui.label(localize!("abbreviation"));
+                        ui.label(localize!(&format!("{id}.abbreviation")));
+                        ui.end_row();
 
-                        if let Some(common_name) = try_localize!(&format!("{id:#}.common_name")) {
-                            ui.label(localize!("common_name"));
-                            ui.label(common_name);
-                            ui.end_row();
-                        }
+                        ui.label(localize!("common_name"));
+                        ui.label(localize!(&format!("{id}.common_name")));
+                        ui.end_row();
 
-                        if let Some(systematic_name) =
-                            try_localize!(&format!("{id:#}.systematic_name"))
-                        {
-                            ui.label(localize!("systematic_name"));
-                            ui.label(systematic_name);
-                            ui.end_row();
-                        }
+                        ui.label(localize!("systematic_name"));
+                        ui.label(localize!(&format!("{id}.systematic_name")));
+                        ui.end_row();
                     });
                 });
             }

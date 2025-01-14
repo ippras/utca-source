@@ -117,7 +117,8 @@ impl TableView<'_> {
                 let inner_response = FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
                     .editable(self.settings.editable)
                     .hover()
-                    .ui(ui)?;
+                    .names(self.settings.names)
+                    .try_show(ui)?;
                 if let Some(value) = inner_response.inner {
                     self.data_frame
                         .try_apply("FattyAcid", change_fatty_acid(row, &value))?;

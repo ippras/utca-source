@@ -51,7 +51,7 @@ impl Control {
                         for index in 0..CHRISTIE.data.height() {
                             FattyAcidWidget::new(|| CHRISTIE.data.fatty_acid().get(index))
                                 .hover()
-                                .ui(ui)
+                                .try_show(ui)
                                 .unwrap();
                             FloatWidget::new(move || Ok(CHRISTIE.data.f64("Christie").get(index)))
                                 .show(ui);

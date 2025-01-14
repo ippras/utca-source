@@ -194,7 +194,7 @@ impl TableView<'_> {
             (row, id::FA) => {
                 FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
                     .hover()
-                    .ui(ui)?;
+                    .try_show(ui)?;
             }
             (row, experimental::TAG) => {
                 self.value(

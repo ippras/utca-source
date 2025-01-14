@@ -9,7 +9,14 @@ use unic_langid::LanguageIdentifier;
 const SIZE: f32 = 32.0;
 
 #[macro_export]
-macro_rules! lowercase {
+macro_rules! localize {
+    ($key:expr) => {
+        crate::try_localize!($key).unwrap_or_else(|| $key.to_uppercase())
+    };
+}
+
+#[macro_export]
+macro_rules! try_localize {
     ($key:expr) => {{
         use fluent_content::Content;
 
@@ -18,21 +25,7 @@ macro_rules! lowercase {
             .unwrap()
             .0
             .content($key)
-    }};
-}
-
-#[macro_export]
-macro_rules! localize {
-    ($key:literal) => {{
-        use fluent_content::Content;
-
-        match crate::localization::LOCALIZATION
-            .read()
-            .unwrap()
-            .0
-            .content($key)
-        {
-            Some(content) => {
+            .map(|content| {
                 let mut chars = content.chars();
                 chars
                     .next()
@@ -40,10 +33,8 @@ macro_rules! localize {
                     .into_iter()
                     .flatten()
                     .chain(chars)
-                    .collect()
-            }
-            None => $key.to_uppercase(),
-        }
+                    .collect::<String>()
+            })
     }};
 }
 
