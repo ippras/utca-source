@@ -37,7 +37,7 @@ impl Pane {
         }
     }
 
-    fn header_content(&mut self, ui: &mut Ui) -> Response {
+    fn header(&mut self, ui: &mut Ui) -> Response {
         let mut response = ui
             .heading(INTERSECT_THREE)
             .on_hover_text(localize!("composition"));
@@ -83,7 +83,7 @@ impl Pane {
         response
     }
 
-    fn body_content(&mut self, ui: &mut Ui) {
+    fn body(&mut self, ui: &mut Ui) {
         self.target = ui.memory_mut(|memory| {
             memory
                 .caches
@@ -112,7 +112,7 @@ impl PaneDelegate for Pane {
             ScrollArea::horizontal()
                 .show(ui, |ui| {
                     ui.visuals_mut().button_frame = false;
-                    self.header_content(ui)
+                    self.header(ui)
                 })
                 .inner
         })
@@ -121,8 +121,8 @@ impl PaneDelegate for Pane {
 
     fn body(&mut self, ui: &mut Ui) {
         ui.separator();
-        self.control.windows(ui);
-        self.body_content(ui);
+        self.control.windows(ui, &self.target);
+        self.body(ui);
     }
 }
 

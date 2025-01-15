@@ -5,11 +5,18 @@ use crate::{
     special::composition::{Composition, MC, NC, PSC, PTC, PUC, SC, SSC, STC, SUC, TC, UC},
 };
 use egui::{
-    ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, SliderClamping,
-    Ui, Window, emath::Float, util::hash,
+    ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
+    ScrollArea, Slider, SliderClamping, Ui, Window, emath::Float, util::hash,
 };
 use egui_ext::LabeledSeparator;
-use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, FUNNEL, FUNNEL_X, GEAR, MINUS, PLUS};
+use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, FUNNEL, FUNNEL_X, GEAR, MINUS, PLUS, TRASH};
+use lipid::{
+    fatty_acid::{
+        FattyAcid,
+        display::{COMMON, DisplayWithOptions as _},
+    },
+    prelude::*,
+};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -36,13 +43,13 @@ impl Control {
         }
     }
 
-    pub(crate) fn windows(&mut self, ui: &mut Ui) {
+    pub(crate) fn windows(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
         Window::new(format!("{GEAR} Composition settings"))
             .id(ui.next_auto_id())
             .default_pos(ui.next_widget_position())
             .open(&mut self.open)
             .show(ui.ctx(), |ui| {
-                self.unconfirmed.show(ui);
+                self.unconfirmed.show(ui, data_frame);
                 let enabled = hash(&self.confirmed) != hash(&self.unconfirmed);
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.horizontal(|ui| {
@@ -103,7 +110,7 @@ impl Settings {
 }
 
 impl Settings {
-    pub(crate) fn show(&mut self, ui: &mut Ui) {
+    pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
         Grid::new("composition").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));
@@ -206,6 +213,7 @@ impl Settings {
                 self.groups.push_front(Group::new());
             }
             ui.end_row();
+            let mut index = 0;
             self.groups.retain_mut(|group| {
                 let mut keep = true;
                 ui.label("");
@@ -255,8 +263,42 @@ impl Settings {
                         ui.label(format!(
                             "{} {}",
                             group.composition.text(),
-                            localize!("filter")
+                            localize!("filter"),
                         ));
+                        // Key
+                        ui.horizontal(|ui| {
+                            ComboBox::from_id_salt("FattyAcidsFilter")
+                                .height(ui.available_height())
+                                .selected_text(group.filter.key.len().to_string())
+                                // .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+                                .show_ui(ui, |ui| -> PolarsResult<()> {
+                                    println!("data_frame: {data_frame}");
+                                    let key = data_frame[index + 1]
+                                        .struct_()
+                                        .unwrap()
+                                        .field_by_name("Key")
+                                        .unwrap();
+                                    // println!("composition: {:?}", key.str_value(0));
+                                    for index in 0..key.len() {
+                                        if let Ok(key) = key.str_value(index) {
+                                            let key = key.to_string();
+                                            let contains = group.filter.key.contains(&key);
+                                            let mut selected = contains;
+                                            ui.toggle_value(&mut selected, &key);
+                                            if selected && !contains {
+                                                group.filter.key.push(key);
+                                            } else if !selected && contains {
+                                                group.filter.remove(&key);
+                                            }
+                                        }
+                                    }
+                                    Ok(())
+                                });
+                            if ui.button(TRASH).clicked() {
+                                group.filter.key = Vec::new();
+                            }
+                        });
+                        // Value
                         ui.add(
                             Slider::new(&mut group.filter.value, 0.0..=1.0)
                                 .clamping(SliderClamping::Always)
@@ -278,6 +320,7 @@ impl Settings {
                     });
                 });
                 ui.end_row();
+                index += 1;
                 keep
             });
             if self.groups.is_empty() {
@@ -449,14 +492,23 @@ impl Show {
 }
 
 /// Filter
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub(crate) struct Filter {
+    pub(crate) key: Vec<String>,
     pub(crate) value: f64,
 }
 
 impl Filter {
     pub(crate) const fn new() -> Self {
-        Self { value: 0.0 }
+        Self {
+            key: Vec::new(),
+            value: 0.0,
+        }
+    }
+
+    fn remove(&mut self, target: &String) -> Option<String> {
+        let position = self.key.iter().position(|source| source == target)?;
+        Some(self.key.remove(position))
     }
 }
 
@@ -521,7 +573,7 @@ impl Order {
 }
 
 /// Group
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(crate) struct Group {
     pub(crate) composition: Composition,
     pub(crate) filter: Filter,

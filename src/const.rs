@@ -28,18 +28,3 @@ pub(crate) mod relative_atomic_mass {
     pub(crate) const CH2: f64 = C + 2.0 * H;
     pub(crate) const NH4: f64 = N + 4.0 * H;
 }
-
-// pub(crate) const OLEIC: Counter = counter! {
-//     C::Twelve => 18,
-//     H::One => 34,
-// };
-// pub(crate) const ELAIDIC: Counter = counter! {
-//     C::Twelve => 18,
-//     H::One => 34,
-// };
-// pub(crate) const LINOLEIC: Counter = counter! {
-//     C::Twelve => 18,
-//     H::One => 32,
-// };
-
-
