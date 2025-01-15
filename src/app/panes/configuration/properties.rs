@@ -1,6 +1,6 @@
 use crate::{r#const::relative_atomic_mass::CH2, localize};
 use egui::{Grid, Response, Ui, Widget};
-use lipid::fatty_acid::{FattyAcid, Kind as FattyAcidKind, ext::Mass as _};
+use lipid::fatty_acid::{FattyAcid, Kind as FattyAcidKind, mass::Mass as _};
 use polars::prelude::AnyValue;
 
 /// Properties
