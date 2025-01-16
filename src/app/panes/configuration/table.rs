@@ -14,7 +14,8 @@ use polars::{chunked_array::builder::AnonymousOwnedListBuilder, prelude::*};
 use std::ops::Range;
 
 const INDEX: Range<usize> = 0..1;
-const FA: Range<usize> = INDEX.end..INDEX.end + 1;
+const LABEL: Range<usize> = INDEX.end..INDEX.end + 1;
+const FA: Range<usize> = LABEL.end..LABEL.end + 1;
 const TAG: Range<usize> = FA.end..FA.end + 1;
 const DAG1223: Range<usize> = TAG.end..TAG.end + 1;
 const MAG2: Range<usize> = DAG1223.end..DAG1223.end + 1;
@@ -66,6 +67,9 @@ impl TableView<'_> {
             (0, INDEX) => {
                 ui.heading("Index");
             }
+            (0, LABEL) => {
+                ui.heading("Label");
+            }
             (0, FA) => {
                 ui.heading("FA");
             }
@@ -112,6 +116,21 @@ impl TableView<'_> {
                 let indices = self.data_frame[0].u32()?;
                 let index = indices.get(row).unwrap();
                 ui.label(index.to_string());
+            }
+            (row, LABEL) => {
+                let label = self.data_frame["Label"].str()?;
+                let Some(label) = label.get(row) else {
+                    return Ok(());
+                };
+                if self.settings.editable {
+                    let mut label = label.to_owned();
+                    if ui.text_edit_singleline(&mut label).changed() {
+                        self.data_frame
+                            .try_apply("Label", change_label(row, &label))?;
+                    }
+                } else {
+                    ui.label(label);
+                }
             }
             (row, FA) => {
                 let inner_response = FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
@@ -220,6 +239,23 @@ impl TableDelegate for TableView<'_> {
 pub(super) enum Event {
     AddRow,
     DeleteRow(usize),
+}
+
+fn change_label(row: usize, new: &str) -> impl FnMut(&Series) -> PolarsResult<Series> {
+    move |series| {
+        Ok(series
+            .str()?
+            .iter()
+            .enumerate()
+            .map(|(index, mut value)| {
+                if index == row {
+                    value = Some(new);
+                }
+                Ok(value)
+            })
+            .collect::<PolarsResult<StringChunked>>()?
+            .into_series())
+    }
 }
 
 fn change_fatty_acid(

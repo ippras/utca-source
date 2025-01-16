@@ -359,6 +359,7 @@ impl Pane {
                 data_frame.clone().lazy(),
                 df! {
                     data_frame[0].name().clone() => [data_frame.height() as u32],
+                    "Label" => [""],
                     "FattyAcid" => df! {
                         "Carbons" => [0u8],
                         "Unsaturated" => [
