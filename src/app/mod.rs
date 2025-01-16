@@ -11,7 +11,7 @@ use egui::{
     RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
     util::IdTypeMap, warn_if_debug_build,
 };
-use egui_ext::{HoveredFileExt, LightDarkButton};
+use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
@@ -422,20 +422,20 @@ impl App {
         }) {
             info!(?dropped_files);
             for dropped in dropped_files {
-                // trace!(?dropped);
-                // let content = match dropped.content() {
-                //     Ok(content) => content,
-                //     Err(error) => {
-                //         error!(%error);
-                //         self.toasts
-                //             .error(format!("{}: {error}", dropped.display()))
-                //             .closable(true)
-                //             .duration(Some(NOTIFICATIONS_DURATION));
-                //         continue;
-                //     }
-                // };
-                // trace!(content);
-                // self.channel.0.send(content).ok();
+                trace!(?dropped);
+                let bytes = match dropped.bytes() {
+                    Ok(bytes) => bytes,
+                    Err(error) => {
+                        error!(%error);
+                        self.toasts
+                            .error(format!("{}: {error}", dropped.display()))
+                            .closable(true)
+                            .duration(Some(NOTIFICATIONS_DURATION));
+                        continue;
+                    }
+                };
+                trace!(?bytes);
+                self.channel.0.send(bytes).ok();
             }
         }
     }
