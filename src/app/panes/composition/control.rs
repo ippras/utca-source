@@ -5,7 +5,7 @@ use crate::{
     special::composition::{Composition, MC, NC, PSC, PTC, PUC, SC, SSC, STC, SUC, TC, UC},
 };
 use egui::{
-    ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
+    ComboBox, DragValue, Grid, Id, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
     ScrollArea, Slider, SliderClamping, Ui, Window, emath::Float, util::hash,
 };
 use egui_ext::LabeledSeparator;
@@ -259,6 +259,16 @@ impl Settings {
                         ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
                         FUNNEL_X
                     };
+                    // ui.interact(
+                    //     egui::Rect::EVERYTHING,
+                    //     egui::Id::new("Right click menu"),
+                    //     egui::Sense::hover(),
+                    // ).context_menu_opened();
+                    // .context_menu(|ui|
+                    //     {
+                    //                                 if ui.button(format!("test")).clicked() {
+                    //                                 }
+                    //     }
                     ui.menu_button(title, |ui| {
                         ui.label(format!(
                             "{} {}",
@@ -266,13 +276,17 @@ impl Settings {
                             localize!("filter"),
                         ));
                         // Key
+                        let mut is_open = false;
+                        let t = AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
                         ui.horizontal(|ui| {
-                            ComboBox::from_id_salt("FattyAcidsFilter")
-                                .height(ui.available_height())
+                            let id_salt = "FattyAcidsFilter";
+                            ComboBox::from_id_salt(id_salt)
+                                // .height(ui.available_height())
                                 .selected_text(group.filter.key.len().to_string())
-                                // .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
+                                .height(ui.available_height())
+                                .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| -> PolarsResult<()> {
-                                    println!("data_frame: {data_frame}");
+                                    // println!("data_frame: {data_frame}");
                                     let key = data_frame[index + 1]
                                         .struct_()
                                         .unwrap()
@@ -293,11 +307,18 @@ impl Settings {
                                         }
                                     }
                                     Ok(())
-                                });
+                                })
+                                .response
+                                .on_hover_text(t.str_value());
+                            let id = ui.make_persistent_id(Id::new(id_salt));
+                            is_open = ComboBox::is_open(ui.ctx(), id);
                             if ui.button(TRASH).clicked() {
                                 group.filter.key = Vec::new();
                             }
                         });
+                        if is_open {
+                            ui.add_space(100.0 - ui.spacing().interact_size.y);
+                        }
                         // Value
                         ui.add(
                             Slider::new(&mut group.filter.value, 0.0..=1.0)

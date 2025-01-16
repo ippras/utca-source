@@ -1,10 +1,5 @@
 use polars::prelude::*;
-use std::{
-    borrow::{Borrow, Cow},
-    fmt::Display,
-    ops::Range,
-    // iter::Step,
-};
+use std::borrow::Cow;
 
 pub fn destruct(names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr {
     let mut names = names.into_iter();
