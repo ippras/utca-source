@@ -110,7 +110,8 @@ impl Settings {
 }
 
 impl Settings {
-    pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
+    pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) -> PolarsResult<()> {
+        let mut result = Ok(());
         Grid::new("composition").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));
@@ -259,16 +260,6 @@ impl Settings {
                         ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
                         FUNNEL_X
                     };
-                    // ui.interact(
-                    //     egui::Rect::EVERYTHING,
-                    //     egui::Id::new("Right click menu"),
-                    //     egui::Sense::hover(),
-                    // ).context_menu_opened();
-                    // .context_menu(|ui|
-                    //     {
-                    //                                 if ui.button(format!("test")).clicked() {
-                    //                                 }
-                    //     }
                     ui.menu_button(title, |ui| {
                         ui.label(format!(
                             "{} {}",
@@ -280,8 +271,7 @@ impl Settings {
                         let t = AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
                         ui.horizontal(|ui| {
                             let id_salt = "FattyAcidsFilter";
-                            ComboBox::from_id_salt(id_salt)
-                                // .height(ui.available_height())
+                            let inner_response = ComboBox::from_id_salt(id_salt)
                                 .selected_text(group.filter.key.len().to_string())
                                 .height(ui.available_height())
                                 .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
@@ -307,9 +297,11 @@ impl Settings {
                                         }
                                     }
                                     Ok(())
-                                })
-                                .response
-                                .on_hover_text(t.str_value());
+                                });
+                            if let Some(inner) = inner_response.inner {
+                                result = inner;
+                            }
+                            inner_response.response.on_hover_text(t.str_value());
                             let id = ui.make_persistent_id(Id::new(id_salt));
                             is_open = ComboBox::is_open(ui.ctx(), id);
                             if ui.button(TRASH).clicked() {
@@ -412,6 +404,7 @@ impl Settings {
             ui.separator();
             ui.separator();
         });
+        result
     }
 }
 
