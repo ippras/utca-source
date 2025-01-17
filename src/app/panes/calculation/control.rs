@@ -20,6 +20,7 @@ pub(crate) struct Control {
     pub(crate) settings: Settings,
     pub(crate) index: Option<usize>,
     pub(crate) open: bool,
+    pub(crate) reset: bool,
 }
 
 impl Control {
@@ -28,6 +29,7 @@ impl Control {
             settings: Settings::new(),
             index: None,
             open: false,
+            reset: false,
         }
     }
 

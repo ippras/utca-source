@@ -122,7 +122,7 @@ impl Pane {
                     settings: &self.control.settings,
                 })
         });
-        TableView::new(&mut self.target, &self.control.settings).show(ui)
+        TableView::new(&mut self.target, &mut self.control).show(ui)
     }
 
     fn hash(&self) -> u64 {

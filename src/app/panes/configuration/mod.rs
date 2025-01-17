@@ -3,7 +3,11 @@ use self::{
     table::{Event, TableView},
 };
 use super::PaneDelegate;
-use crate::{localize, utils::save};
+use crate::{
+    app::ContextExt,
+    localize,
+    utils::{polars::DataFrameExt, save},
+};
 use anyhow::Result;
 use egui::{
     CursorIcon, DragValue, Grid, Id, Response, RichText, ScrollArea, Ui, menu::bar, util::hash,
@@ -146,7 +150,7 @@ impl Pane {
             .clicked()
         {
             if let Err(error) = self.save() {
-                error!(%error);
+                ui.ctx().error(error);
             }
         }
         ui.separator();

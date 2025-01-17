@@ -1,9 +1,9 @@
-use super::control::Settings;
+use super::{ContextExt as _, control::Settings};
 use crate::app::{
     panes::MARGIN,
     widgets::{FattyAcidWidget, FloatWidget},
 };
-use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
+use egui::{Context, Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
 use egui_phosphor::regular::{MINUS, PLUS};
 use egui_table::{AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate};
 use lipid::fatty_acid::{
@@ -41,7 +41,7 @@ impl<'a> TableView<'a> {
 impl TableView<'_> {
     pub(super) fn show(&mut self, ui: &mut Ui) -> Option<Event> {
         let id_salt = Id::new("ConfigurationTable");
-        let height = ui.text_style_height(&TextStyle::Heading);
+        let height = ui.text_style_height(&TextStyle::Heading) + 2.0 * MARGIN.y;
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = LEN;
         Table::new()
@@ -118,10 +118,8 @@ impl TableView<'_> {
                 ui.label(index.to_string());
             }
             (row, LABEL) => {
-                let label = self.data_frame["Label"].str()?;
-                let Some(label) = label.get(row) else {
-                    return Ok(());
-                };
+                let labels = self.data_frame["Label"].str()?;
+                let label = labels.get(row).unwrap();
                 if self.settings.editable {
                     let mut label = label.to_owned();
                     if ui.text_edit_singleline(&mut label).changed() {
@@ -152,7 +150,7 @@ impl TableView<'_> {
             (row, MAG2) => {
                 self.rw(ui, row, "Monoacylglycerol2")?;
             }
-            _ => {} // _ => unreachable!(),
+            _ => {}
         }
         Ok(())
     }
@@ -190,7 +188,7 @@ impl TableView<'_> {
                     .response
                     .on_hover_text("∑ MAG");
             }
-            _ => {} // _ => unreachable!(),
+            _ => {}
         }
         Ok(())
     }
@@ -226,11 +224,19 @@ impl TableDelegate for TableView<'_> {
                 .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
         }
         Frame::none()
-            .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
+            .inner_margin(Margin::symmetric(MARGIN.x, 2.0))
             .show(ui, |ui| {
-                self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
-                    .unwrap()
+                if let Err(error) =
+                    self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
+                {
+                    ui.ctx()
+                        .error(error.context("Configuration table cell ui".into()));
+                }
             });
+    }
+
+    fn row_top_offset(&self, ctx: &Context, _table_id: Id, row_nr: u64) -> f32 {
+        row_nr as f32 * (ctx.style().spacing.interact_size.y + 2.0 * MARGIN.y)
     }
 }
 

@@ -8,7 +8,9 @@ use crate::{
     utils::polars::DataFrameExt as _,
 };
 use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
-use egui_table::{AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate};
+use egui_table::{
+    AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
+};
 use lipid::fatty_acid::polars::DataFrameExt as _;
 use polars::prelude::*;
 use std::ops::Range;
@@ -53,15 +55,26 @@ impl<'a> TableView<'a> {
 impl TableView<'_> {
     pub(crate) fn show(&mut self, ui: &mut Ui) {
         let id_salt = Id::new("CalculationTable");
+        let id = TableState::id(ui, Id::new(id_salt));
+        println!("id: {id:?}");
+        println!("TableState: {:?}", TableState::load(ui.ctx(), id));
+        println!();
+
+        // println!(
+        //     "TableState: {:?}",
+        //     TableState::load(ui.ctx(), ui.make_persistent_id("CalculationTable"))
+        // );
         if self.settings.reset {
-            // let id = TableState::id(ui, Id::new(id_salt));
+            // egui_table::Table::new().id_salt(id_salt).get_id(ui)
+            // let id = TableState::id(ui, id_salt);
             // debug_assert!(TableState::load(ui.ctx(), id).is_some(), "Wrong state_id");
-            // TableState::reset(ui.ctx(), id);
+            TableState::reset(ui.ctx(), id);
+            self.settings.reset = false;
         }
-        let height = ui.text_style_height(&TextStyle::Heading);
+        let height = ui.text_style_height(&TextStyle::Heading) + 2.0 * MARGIN.y;
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = LEN;
-        Table::new()
+        let t = Table::new()
             .id_salt(id_salt)
             .num_rows(num_rows)
             .columns(vec![
@@ -80,8 +93,10 @@ impl TableView<'_> {
                 },
                 HeaderRow::new(height),
             ])
-            .auto_size_mode(AutoSizeMode::OnParentResize)
-            .show(ui, self);
+            .auto_size_mode(AutoSizeMode::OnParentResize);
+        println!("Table: {:?}", t.get_id(ui));
+        println!("TableState: {:?}", TableState::load(ui.ctx(), t.get_id(ui)));
+        t.show(ui, self);
     }
 
     fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {

@@ -4,12 +4,13 @@ use self::{
     windows::{About, Github},
 };
 use crate::{localization::UiExt, localize};
+use anyhow::Error;
 use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Id, LayerId, Layout, Order,
-    RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
-    util::IdTypeMap, warn_if_debug_build,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, FontSelection, Id, LayerId,
+    Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals,
+    menu::bar, text::LayoutJob, util::IdTypeMap, warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
@@ -66,7 +67,9 @@ pub struct App {
 
     // Data channel
     #[serde(skip)]
-    channel: (Sender<Vec<u8>>, Receiver<Vec<u8>>),
+    data_channel: (Sender<Vec<u8>>, Receiver<Vec<u8>>),
+    #[serde(skip)]
+    error_channel: (Sender<Error>, Receiver<Error>),
 
     // Windows
     #[serde(skip)]
@@ -84,7 +87,8 @@ impl Default for App {
             left_panel: true,
             tree: Tree::empty("central_tree"),
             data: Default::default(),
-            channel: channel(),
+            data_channel: channel(),
+            error_channel: channel(),
             toasts: Default::default(),
             about: Default::default(),
             github: Default::default(),
@@ -116,8 +120,12 @@ impl App {
     }
 
     fn context(&self, ctx: &Context) {
-        // Data channel
-        ctx.data_mut(|data| data.insert_temp(Id::new("Data"), self.channel.0.clone()));
+        ctx.data_mut(|data| {
+            // Data channel
+            data.insert_temp(Id::new("Data"), self.data_channel.0.clone());
+            // Error channel
+            data.insert_temp(Id::new("Error"), self.error_channel.0.clone());
+        });
     }
 }
 
@@ -435,13 +443,13 @@ impl App {
                     }
                 };
                 trace!(?bytes);
-                self.channel.0.send(bytes).ok();
+                self.data_channel.0.send(bytes).ok();
             }
         }
     }
 
     fn parse(&mut self, ctx: &Context) {
-        for bytes in self.channel.1.try_iter() {
+        for bytes in self.data_channel.1.try_iter() {
             trace!(?bytes);
             match MetaDataFrame::read(Cursor::new(bytes)) {
                 Ok(frame) => {
@@ -451,6 +459,17 @@ impl App {
                 }
                 Err(error) => error!(%error),
             };
+        }
+    }
+
+    fn error(&mut self, ctx: &Context) {
+        let available_width = ctx.available_rect().width() / 2.0;
+        for error in self.error_channel.1.try_iter() {
+            self.toasts
+                .error(error.to_string())
+                .width(available_width)
+                .duration(Some(NOTIFICATIONS_DURATION))
+                .closable(true);
         }
     }
 
@@ -551,6 +570,23 @@ impl eframe::App for App {
         // Post update
         self.drag_and_drop(ctx);
         self.parse(ctx);
+        self.error(ctx);
+    }
+}
+
+/// Extension methods for [`Context`]
+pub(crate) trait ContextExt {
+    fn error(&self, error: impl Into<Error>);
+}
+
+impl ContextExt for Context {
+    fn error(&self, error: impl Into<Error>) {
+        let error = error.into();
+        error!(%error);
+        let id = Id::new("Error");
+        if let Some(sender) = self.data_mut(|data| data.get_temp::<Sender<Error>>(id)) {
+            sender.send(error).ok();
+        }
     }
 }
 

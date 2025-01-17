@@ -5,7 +5,7 @@ use metadata::MetaDataFrame;
 use polars::frame::DataFrame;
 use serde::{Deserialize, Serialize};
 
-const MARGIN: Vec2 = vec2(4.0, 0.0);
+const MARGIN: Vec2 = vec2(4.0, 2.0);
 
 /// Central pane
 #[derive(Deserialize, Serialize)]
