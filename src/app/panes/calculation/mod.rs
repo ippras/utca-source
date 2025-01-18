@@ -93,6 +93,7 @@ impl Pane {
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
+        ui.separator();
         // Settings
         ui.toggle_value(
             &mut self.state.open_settings_window,

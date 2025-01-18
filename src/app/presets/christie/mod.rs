@@ -1,5 +1,4 @@
 use metadata::MetaDataFrame;
-use polars::prelude::*;
 use std::{io::Cursor, sync::LazyLock};
 
 pub(crate) static CHRISTIE: LazyLock<MetaDataFrame> = LazyLock::new(|| {

@@ -99,17 +99,20 @@ impl Pane {
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
+        ui.separator();
         // Settings
         ui.toggle_value(
             &mut self.state.open_settings_window,
             RichText::new(GEAR).heading(),
         );
+        ui.separator();
         // View
         ui.visuals_mut().widgets.hovered = Visuals::default().widgets.hovered;
         self.plot ^= ui
             .button(RichText::new(CHART_BAR).heading())
             .on_hover_text(localize!("visualization"))
             .clicked();
+        ui.separator();
         response
     }
 

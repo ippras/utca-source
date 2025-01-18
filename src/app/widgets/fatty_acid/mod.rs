@@ -1,12 +1,11 @@
+use crate::{app::ResultExt, localize, try_localize};
 use egui::{Align, DragValue, Grid, InnerResponse, Layout, Ui, Widget, style::Widgets, vec2};
 use lipid::fatty_acid::{
     FattyAcid, FattyAcidExt as _, Isomerism, Unsaturated, Unsaturation,
     display::{COMMON, DisplayWithOptions, ID},
 };
 use polars::prelude::*;
-use std::cmp::Ordering;
-
-use crate::localize;
+use std::{cmp::Ordering, mem::replace};
 
 /// Fatty acid widget
 pub(crate) struct FattyAcidWidget<'a> {
@@ -37,23 +36,22 @@ impl<'a> FattyAcidWidget<'a> {
         }
     }
 
-    pub(crate) fn names(self) -> Self {
-        Self {
-            names: true,
-            ..self
-        }
+    pub(crate) fn names(self, names: bool) -> Self {
+        Self { names, ..self }
     }
 }
 
 impl FattyAcidWidget<'_> {
-    pub(crate) fn try_show(self, ui: &mut Ui) -> PolarsResult<InnerResponse<Option<FattyAcid>>> {
-        let fatty_acid = (self.value)()?;
-        let text = match &fatty_acid {
-            Some(fatty_acid) => &format!("{:#}", fatty_acid.display(COMMON)),
-            None => "",
+    pub(crate) fn try_show(self, ui: &mut Ui) -> InnerResponse<PolarsResult<Option<FattyAcid>>> {
+        let mut inner = (self.value)();
+        let Ok(Some(mut fatty_acid)) = replace(&mut inner, Ok(None)) else {
+            // Null
+            let response = ui.label(AnyValue::Null.to_string());
+            return InnerResponse::new(inner, response);
         };
-        let mut inner = None;
+        let text = &format!("{:#}", (&fatty_acid).display(COMMON));
         let mut response = if self.editable {
+            // Writable
             ui.add_sized(
                 vec2(ui.available_width(), ui.style().spacing.interact_size.y),
                 |ui: &mut Ui| {
@@ -65,13 +63,11 @@ impl FattyAcidWidget<'_> {
                         };
                         ui.visuals_mut().widgets.inactive.weak_bg_fill =
                             widgets.active.weak_bg_fill;
-                        let mut fatty_acid = fatty_acid.clone().unwrap_or_default();
+                        // let mut fatty_acid = fatty_acid.clone();
                         Grid::new(ui.next_auto_id()).show(ui, |ui| {
                             // Carbons
                             ui.label("Carbons");
-                            if DragValue::new(&mut fatty_acid.carbons).ui(ui).changed() {
-                                inner = Some(fatty_acid.clone());
-                            }
+                            ui.add(DragValue::new(&mut fatty_acid.carbons));
                             ui.end_row();
 
                             // Unsaturated
@@ -137,7 +133,7 @@ impl FattyAcidWidget<'_> {
                                             unsaturated.unsaturation,
                                         )
                                     });
-                                    inner = Some(fatty_acid.clone());
+                                    inner = Ok(Some(fatty_acid.clone()));
                                 }
                             });
                             let mut unsaturated = fatty_acid.unsaturated.len();
@@ -165,7 +161,7 @@ impl FattyAcidWidget<'_> {
                                             }
                                         }
                                     }
-                                    inner = Some(fatty_acid.clone());
+                                    inner = Ok(Some(fatty_acid.clone()));
                                 }
                             });
                         });
@@ -174,30 +170,52 @@ impl FattyAcidWidget<'_> {
                 },
             )
         } else {
+            // Readable
             ui.label(text)
         };
+        // Hover
         if self.hover {
             response = response.on_hover_text(text);
             if self.names {
                 response = response.on_hover_ui(|ui| {
                     ui.heading(localize!("names"));
                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        let id = fatty_acid.unwrap_or_default().display(ID);
-                        ui.label(localize!("abbreviation"));
-                        ui.label(localize!(&format!("{id}.abbreviation")));
-                        ui.end_row();
+                        let id = fatty_acid.display(ID);
+                        if let Some(abbreviation) = try_localize!(&format!("{id:#}.abbreviation")) {
+                            ui.label(localize!("abbreviation"));
+                            ui.label(abbreviation);
+                            ui.end_row();
+                        }
 
-                        ui.label(localize!("common_name"));
-                        ui.label(localize!(&format!("{id}.common_name")));
-                        ui.end_row();
+                        if let Some(common_name) = try_localize!(&format!("{id:#}.common_name")) {
+                            ui.label(localize!("common_name"));
+                            ui.label(common_name);
+                            ui.end_row();
+                        }
 
-                        ui.label(localize!("systematic_name"));
-                        ui.label(localize!(&format!("{id}.systematic_name")));
-                        ui.end_row();
+                        if let Some(systematic_name) =
+                            try_localize!(&format!("{id:#}.systematic_name"))
+                        {
+                            ui.label(localize!("systematic_name"));
+                            ui.label(systematic_name);
+                            ui.end_row();
+                        }
                     });
                 });
             }
         }
-        Ok(InnerResponse::new(inner, response))
+        InnerResponse::new(inner, response)
+    }
+
+    pub(crate) fn show(self, ui: &mut Ui) -> InnerResponse<Option<FattyAcid>> {
+        let InnerResponse { inner, response } = self.try_show(ui);
+        let inner = inner.context(ui.ctx()).flatten();
+        InnerResponse::new(inner, response)
+    }
+}
+
+impl Widget for FattyAcidWidget<'_> {
+    fn ui(self, ui: &mut Ui) -> egui::Response {
+        self.show(ui).response
     }
 }
