@@ -1,77 +1,17 @@
-use crate::{
-    app::{
-        MAX_PRECISION,
-        presets::CHRISTIE,
-        widgets::{FattyAcidWidget, FloatWidget},
-    },
-    localize,
-    utils::polars::DataFrameExt,
-};
-use egui::{
-    ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, ScrollArea, Slider, Ui, Window,
-};
-use egui_phosphor::regular::{BROWSERS, GEAR, MATH_OPERATIONS};
-use lipid::fatty_acid::polars::DataFrameExt as _;
+use super::State;
+use crate::{app::MAX_PRECISION, localize};
+use egui::{ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
+use egui_phosphor::regular::BROWSERS;
 use serde::{Deserialize, Serialize};
-
-/// Calculation control
-#[derive(Default, Deserialize, Serialize)]
-pub(crate) struct Control {
-    pub(crate) settings: Settings,
-    pub(crate) index: Option<usize>,
-    pub(crate) open: bool,
-    pub(crate) reset: bool,
-}
-
-impl Control {
-    pub(crate) const fn new() -> Self {
-        Self {
-            settings: Settings::new(),
-            index: None,
-            open: false,
-            reset: false,
-        }
-    }
-
-    pub(crate) fn windows(&mut self, ui: &mut Ui) {
-        // Settings
-        Window::new(format!("{GEAR} Calculation settings"))
-            .id(ui.next_auto_id())
-            .default_pos(ui.next_widget_position())
-            .open(&mut self.open)
-            .show(ui.ctx(), |ui| {
-                self.settings.show(ui);
-            });
-        // Christie
-        Window::new(format!("{MATH_OPERATIONS} Christie"))
-            .default_pos(ui.next_widget_position())
-            .id(ui.auto_id_with("christie"))
-            .open(&mut self.settings.christie.open)
-            .show(ui.ctx(), |ui| {
-                ScrollArea::vertical().show(ui, |ui| {
-                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                        for index in 0..CHRISTIE.data.height() {
-                            FattyAcidWidget::new(|| CHRISTIE.data.fatty_acid().get(index))
-                                .hover()
-                                .try_show(ui)
-                                .unwrap();
-                            FloatWidget::new(move || Ok(CHRISTIE.data.f64("Christie").get(index)))
-                                .show(ui);
-                            ui.end_row();
-                        }
-                    });
-                });
-            });
-    }
-}
 
 /// Calculation settings
 #[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) struct Settings {
+    pub(crate) index: Option<usize>,
+
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
-    pub(crate) reset: bool,
     pub(crate) sticky_columns: usize,
     pub(crate) truncate: bool,
 
@@ -79,25 +19,27 @@ pub(crate) struct Settings {
     pub(crate) from: From,
     pub(crate) normalize: Normalize,
     pub(crate) unsigned: bool,
-    pub(crate) christie: Christie,
+    pub(crate) christie: bool,
+    pub(crate) factors: bool,
 
     pub(crate) ddof: u8,
 }
 
 impl Settings {
-    pub(crate) const fn new() -> Self {
+    pub(crate) const fn new(index: Option<usize>) -> Self {
         Self {
+            index,
             percent: true,
             precision: 1,
             resizable: false,
-            reset: false,
             sticky_columns: 0,
             truncate: false,
             fraction: Fraction::AsIs,
             from: From::Mag2,
             normalize: Normalize::new(),
             unsigned: true,
-            christie: Christie::new(),
+            christie: false,
+            factors: true,
             ddof: 1,
         }
     }
@@ -105,12 +47,12 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl Settings {
-    pub(crate) fn show(&mut self, ui: &mut Ui) {
+    pub(crate) fn show(&mut self, ui: &mut Ui, state: &mut State) {
         Grid::new("calculation").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));
@@ -189,11 +131,19 @@ impl Settings {
             });
             ui.end_row();
 
+            // Factors
+            ui.label(localize!("factors"));
+            ui.checkbox(&mut self.factors, "");
+            ui.end_row();
+
             // Christie
             ui.label(localize!("christie"));
             ui.horizontal(|ui| {
-                ui.checkbox(&mut self.christie.apply, "");
-                ui.toggle_value(&mut self.christie.open, RichText::new(BROWSERS).heading());
+                ui.checkbox(&mut self.christie, "");
+                ui.toggle_value(
+                    &mut state.open_christie_window,
+                    RichText::new(BROWSERS).heading(),
+                );
             });
             ui.end_row();
 
@@ -220,22 +170,6 @@ impl Settings {
             ui.add(Slider::new(&mut self.ddof, 0..=2));
             ui.end_row();
         });
-    }
-}
-
-/// Christie
-#[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Christie {
-    pub(crate) apply: bool,
-    pub(crate) open: bool,
-}
-
-impl Christie {
-    pub(crate) const fn new() -> Self {
-        Self {
-            apply: false,
-            open: false,
-        }
     }
 }
 

@@ -1,40 +1,13 @@
 use crate::{app::MAX_PRECISION, localize};
-use egui::{Grid, Slider, Ui, Window};
-use egui_phosphor::regular::GEAR;
+use egui::{Grid, Slider, Ui};
 use serde::{Deserialize, Serialize};
-
-/// Configuration control
-#[derive(Default, Deserialize, Serialize)]
-pub(crate) struct Control {
-    pub(crate) settings: Settings,
-    pub(crate) index: usize,
-    pub(crate) open: bool,
-}
-
-impl Control {
-    pub(crate) const fn new() -> Self {
-        Self {
-            settings: Settings::new(),
-            index: 0,
-            open: false,
-        }
-    }
-
-    pub(crate) fn windows(&mut self, ui: &mut Ui) {
-        Window::new(format!("{GEAR} Configuration settings"))
-            .id(ui.next_auto_id())
-            .default_pos(ui.next_widget_position())
-            .open(&mut self.open)
-            .show(ui.ctx(), |ui| self.settings.show(ui));
-    }
-}
 
 /// Configuration settings
 #[derive(Clone, Debug, Deserialize, Hash, PartialEq, Serialize)]
 pub(crate) struct Settings {
-    #[serde(skip)]
+    pub(crate) index: usize,
+
     pub(crate) resizable: bool,
-    #[serde(skip)]
     pub(crate) editable: bool,
     pub(crate) precision: usize,
     pub(crate) sticky: usize,
@@ -47,6 +20,7 @@ pub(crate) struct Settings {
 impl Settings {
     pub(crate) const fn new() -> Self {
         Self {
+            index: 0,
             resizable: false,
             editable: false,
             precision: 2,

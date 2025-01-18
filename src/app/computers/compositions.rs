@@ -1,4 +1,4 @@
-use crate::app::panes::composition::control::{Order, Settings, Sort};
+use crate::app::panes::composition::settings::{Order, Settings, Sort};
 use polars::prelude::*;
 use std::borrow::Cow;
 

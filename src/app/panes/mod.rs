@@ -1,8 +1,10 @@
+use self::{
+    calculation::Pane as CalculationPane, composition::Pane as CompositionPane,
+    configuration::Pane as ConfigurationPane,
+};
 use crate::localize;
 use egui::{Response, Sense, Ui, Vec2, vec2};
-use egui_phosphor::regular::{CALCULATOR, INTERSECT_THREE, NOTE_PENCIL};
 use metadata::MetaDataFrame;
-use polars::frame::DataFrame;
 use serde::{Deserialize, Serialize};
 
 const MARGIN: Vec2 = vec2(4.0, 2.0);
@@ -14,7 +16,6 @@ pub(crate) enum Pane {
     Configuration(configuration::Pane),
     Calculation(calculation::Pane),
     Composition(composition::Pane),
-    Visualization(visualization::Pane),
 }
 
 impl Pane {
@@ -30,17 +31,12 @@ impl Pane {
         Self::Composition(composition::Pane::new(frames, index))
     }
 
-    pub(crate) fn visualization(data_frame: DataFrame) -> Self {
-        Self::Visualization(visualization::Pane::new(data_frame))
-    }
-
     pub(crate) const fn icon(&self) -> &str {
         match self {
             Self::Christie(_) => "",
-            Self::Configuration(_) => NOTE_PENCIL,
-            Self::Calculation(_) => CALCULATOR,
-            Self::Composition(_) => INTERSECT_THREE,
-            Self::Visualization(_) => INTERSECT_THREE,
+            Self::Configuration(_) => ConfigurationPane::icon(),
+            Self::Calculation(_) => CalculationPane::icon(),
+            Self::Composition(_) => CompositionPane::icon(),
         }
     }
 
@@ -50,7 +46,6 @@ impl Pane {
             Self::Configuration(_) => Kind::Configuration,
             Self::Calculation(_) => Kind::Calculation,
             Self::Composition(_) => Kind::Composition,
-            Self::Visualization(_) => Kind::Visualization,
         }
     }
 
@@ -60,7 +55,6 @@ impl Pane {
             Self::Configuration(pane) => pane.title(),
             Self::Calculation(pane) => pane.title(),
             Self::Composition(pane) => pane.title(),
-            Self::Visualization(_) => localize!("visualization"),
         }
     }
 
@@ -83,7 +77,6 @@ impl Pane {
             Self::Configuration(pane) => pane.header(ui),
             Self::Calculation(pane) => pane.header(ui),
             Self::Composition(pane) => pane.header(ui),
-            Self::Visualization(pane) => pane.header(ui),
         }
     }
 
@@ -93,7 +86,6 @@ impl Pane {
             Self::Configuration(pane) => pane.body(ui),
             Self::Calculation(pane) => pane.body(ui),
             Self::Composition(pane) => pane.body(ui),
-            Self::Visualization(pane) => pane.body(ui),
         }
     }
 }
@@ -124,7 +116,6 @@ pub(crate) enum Kind {
     Configuration,
     Calculation,
     Composition,
-    Visualization,
 }
 
 pub(crate) mod behavior;
@@ -132,5 +123,3 @@ pub(crate) mod calculation;
 pub(crate) mod christie;
 pub(crate) mod composition;
 pub(crate) mod configuration;
-pub(crate) mod visualization;
-// pub(crate) mod settings;

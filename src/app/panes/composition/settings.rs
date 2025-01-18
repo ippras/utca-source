@@ -6,17 +6,10 @@ use crate::{
 };
 use egui::{
     ComboBox, DragValue, Grid, Id, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
-    ScrollArea, Slider, SliderClamping, Ui, Window, emath::Float, util::hash,
+    Slider, SliderClamping, Ui, emath::Float,
 };
 use egui_ext::LabeledSeparator;
-use egui_phosphor::regular::{ARROWS_CLOCKWISE, CHECK, FUNNEL, FUNNEL_X, GEAR, MINUS, PLUS, TRASH};
-use lipid::{
-    fatty_acid::{
-        FattyAcid,
-        display::{COMMON, DisplayWithOptions as _},
-    },
-    prelude::*,
-};
+use egui_phosphor::regular::{FUNNEL, FUNNEL_X, MINUS, PLUS, TRASH};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -24,56 +17,27 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-/// Composition control
+/// Composition settings bundle
 #[derive(Default, Deserialize, Serialize)]
-pub(crate) struct Control {
+pub(crate) struct Bundle {
     pub(crate) confirmed: Settings,
     pub(crate) unconfirmed: Settings,
-    pub(crate) index: Option<usize>,
-    pub(crate) open: bool,
 }
 
-impl Control {
+impl Bundle {
     pub(crate) fn new(index: Option<usize>) -> Self {
         Self {
-            confirmed: Settings::new(),
-            unconfirmed: Settings::new(),
-            index,
-            open: false,
+            confirmed: Settings::new(index),
+            unconfirmed: Settings::new(index),
         }
-    }
-
-    pub(crate) fn windows(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
-        Window::new(format!("{GEAR} Composition settings"))
-            .id(ui.next_auto_id())
-            .default_pos(ui.next_widget_position())
-            .open(&mut self.open)
-            .show(ui.ctx(), |ui| {
-                self.unconfirmed.show(ui, data_frame);
-                let enabled = hash(&self.confirmed) != hash(&self.unconfirmed);
-                ui.add_enabled_ui(enabled, |ui| {
-                    ui.horizontal(|ui| {
-                        if ui
-                            .button(RichText::new(format!("{ARROWS_CLOCKWISE} Reset")).heading())
-                            .clicked()
-                        {
-                            self.unconfirmed = self.confirmed.clone();
-                        }
-                        if ui
-                            .button(RichText::new(format!("{CHECK} Confirm")).heading())
-                            .clicked()
-                        {
-                            self.confirmed = self.unconfirmed.clone();
-                        }
-                    });
-                });
-            });
     }
 }
 
 /// Composition settings
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Settings {
+    pub(crate) index: Option<usize>,
+
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
@@ -91,8 +55,9 @@ pub(crate) struct Settings {
 }
 
 impl Settings {
-    pub(crate) const fn new() -> Self {
+    pub(crate) const fn new(index: Option<usize>) -> Self {
         Self {
+            index,
             percent: true,
             precision: 1,
             resizable: false,
@@ -417,14 +382,16 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl Hash for Settings {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
         self.percent.hash(state);
         self.precision.hash(state);
+        self.resizable.hash(state);
         self.sticky_columns.hash(state);
         self.adduct.ord().hash(state);
         self.method.hash(state);

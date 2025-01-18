@@ -1,6 +1,6 @@
 use super::compositions::LazyFrameExt as _;
 use crate::{
-    app::panes::composition::control::{Filter, Group, Method, Order, Settings, Sort},
+    app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
     r#const::relative_atomic_mass::{C, H},
     special::composition::{
         Kind, MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC,
@@ -123,7 +123,7 @@ pub(crate) struct Computer;
 
 impl Computer {
     fn try_compute(&mut self, key: Key) -> PolarsResult<Value> {
-        match *key.index {
+        match key.settings.index {
             Some(index) => {
                 let frame = &key.frames[index];
                 let mut lazy_frame = frame.data.clone().lazy();
@@ -268,14 +268,12 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Key<'a> {
     pub(crate) frames: &'a [MetaDataFrame],
-    pub(crate) index: &'a Option<usize>,
     pub(crate) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frames.hash(state);
-        self.index.hash(state);
         self.settings.hash(state);
     }
 }

@@ -1,10 +1,12 @@
-use super::control::Settings;
+use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
-use egui_table::{AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate};
+use egui_table::{
+    AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
+};
 use polars::prelude::*;
 use std::ops::Range;
 
@@ -14,22 +16,33 @@ const INDEX: Range<usize> = 0..1;
 pub(super) struct TableView<'a> {
     data_frame: &'a DataFrame,
     settings: &'a Settings,
+    state: &'a mut State,
     // is_row_expanded: BTreeMap<u64, bool>,
     // prefetched: Vec<PrefetchInfo>,
 }
 
 impl<'a> TableView<'a> {
-    pub(crate) fn new(data_frame: &'a DataFrame, settings: &'a Settings) -> Self {
+    pub(crate) fn new(
+        data_frame: &'a DataFrame,
+        settings: &'a Settings,
+        state: &'a mut State,
+    ) -> Self {
         Self {
             data_frame,
             settings,
+            state,
         }
     }
 }
 
 impl TableView<'_> {
     pub(super) fn show(&mut self, ui: &mut Ui) {
-        let id_salt = Id::new("CompositionTable");
+        let id_salt = Id::new(ID_SOURCE).with("Table");
+        if self.state.reset_table_state {
+            let id = TableState::id(ui, Id::new(id_salt));
+            TableState::reset(ui.ctx(), id);
+            self.state.reset_table_state = false;
+        }
         let height = ui.text_style_height(&TextStyle::Heading);
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = self.settings.groups.len() * 2 + 1;

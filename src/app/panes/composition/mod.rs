@@ -1,45 +1,61 @@
-use self::{control::Control, table::TableView};
+use self::{
+    settings::{Bundle, Settings},
+    state::State,
+    table::TableView,
+};
 use super::PaneDelegate;
 use crate::{
     app::computers::{CompositionComputed, CompositionKey},
     localize,
 };
-use egui::{CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, menu::bar, util::hash};
-use egui_phosphor::regular::{ARROWS_HORIZONTAL, CHART_BAR, GEAR, INTERSECT_THREE, LIST};
+use egui::{
+    CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, Window, menu::bar, util::hash,
+};
+use egui_phosphor::regular::{
+    ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHART_BAR, CHECK, GEAR, INTERSECT_THREE, LIST,
+};
 use metadata::MetaDataFrame;
 use plot::PlotView;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+
+const ID_SOURCE: &str = "Composition";
 
 /// Composition pane
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Pane {
     pub(crate) source: Vec<MetaDataFrame>,
     pub(crate) target: DataFrame,
-    pub(crate) control: Control,
+    pub(crate) settings: Bundle,
+    state: State,
     pub(crate) plot: bool,
 }
 
 impl Pane {
-    pub fn new(frames: Vec<MetaDataFrame>, index: Option<usize>) -> Self {
+    pub(crate) fn new(frames: Vec<MetaDataFrame>, index: Option<usize>) -> Self {
         Self {
             source: frames,
             target: DataFrame::empty(),
-            control: Control::new(index),
+            settings: Bundle::new(index),
+            state: State::new(),
             plot: false,
         }
     }
 
+    pub(crate) const fn icon() -> &'static str {
+        INTERSECT_THREE
+    }
+
     pub(crate) fn title(&self) -> String {
-        match self.control.index {
+        match self.settings.confirmed.index {
             Some(index) => self.source[index].meta.title(),
             None => localize!("composition"),
         }
     }
 
-    fn header(&mut self, ui: &mut Ui) -> Response {
+    fn header_content(&mut self, ui: &mut Ui) -> Response {
         let mut response = ui
-            .heading(INTERSECT_THREE)
+            .heading(Self::icon())
             .on_hover_text(localize!("composition"));
         response |= ui.heading(self.title());
         response = response
@@ -52,13 +68,17 @@ impl Pane {
             for index in 0..self.source.len() {
                 clicked |= ui
                     .selectable_value(
-                        &mut self.control.index,
+                        &mut self.settings.confirmed.index,
                         Some(index),
                         self.source[index].meta.title(),
                     )
                     .clicked()
             }
-            ui.selectable_value(&mut self.control.index, None, "Mean ± standard deviations");
+            ui.selectable_value(
+                &mut self.settings.confirmed.index,
+                None,
+                "Mean ± standard deviations",
+            );
             if clicked {
                 ui.close_menu();
             }
@@ -66,14 +86,24 @@ impl Pane {
         .response
         .on_hover_text(localize!("list"));
         ui.separator();
+        // Reset
+        if ui
+            .button(RichText::new(ARROWS_CLOCKWISE).heading())
+            .clicked()
+        {
+            self.state.reset_table_state = true;
+        }
         // Resize
         ui.toggle_value(
-            &mut self.control.confirmed.resizable,
+            &mut self.settings.confirmed.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
         // Settings
-        ui.toggle_value(&mut self.control.open, RichText::new(GEAR).heading());
+        ui.toggle_value(
+            &mut self.state.open_settings_window,
+            RichText::new(GEAR).heading(),
+        );
         // View
         ui.visuals_mut().widgets.hovered = Visuals::default().widgets.hovered;
         self.plot ^= ui
@@ -83,22 +113,48 @@ impl Pane {
         response
     }
 
-    fn body(&mut self, ui: &mut Ui) {
+    fn body_content(&mut self, ui: &mut Ui) {
         self.target = ui.memory_mut(|memory| {
             memory
                 .caches
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
                     frames: &self.source,
-                    index: &self.control.index,
-                    settings: &self.control.confirmed,
+                    settings: &self.settings.confirmed,
                 })
         });
         // if self.plot {
         //     PlotView::new(&self.target).ui(ui);
         // } else {
-        TableView::new(&self.target, &self.control.confirmed).show(ui);
+        TableView::new(&self.target, &self.settings.confirmed, &mut self.state).show(ui);
         // }
+    }
+
+    fn windows(&mut self, ui: &mut Ui) {
+        Window::new(format!("{GEAR} Composition settings"))
+            .id(ui.next_auto_id())
+            .default_pos(ui.next_widget_position())
+            .open(&mut self.state.open_settings_window)
+            .show(ui.ctx(), |ui| {
+                self.settings.unconfirmed.show(ui, &self.target);
+                let enabled = hash(&self.settings.confirmed) != hash(&self.settings.unconfirmed);
+                ui.add_enabled_ui(enabled, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui
+                            .button(RichText::new(format!("{ARROWS_CLOCKWISE} Reset")).heading())
+                            .clicked()
+                        {
+                            self.settings.unconfirmed = self.settings.confirmed.clone();
+                        }
+                        if ui
+                            .button(RichText::new(format!("{CHECK} Confirm")).heading())
+                            .clicked()
+                        {
+                            self.settings.confirmed = self.settings.unconfirmed.clone();
+                        }
+                    });
+                });
+            });
     }
 
     fn hash(&self) -> u64 {
@@ -112,7 +168,7 @@ impl PaneDelegate for Pane {
             ScrollArea::horizontal()
                 .show(ui, |ui| {
                     ui.visuals_mut().button_frame = false;
-                    self.header(ui)
+                    self.header_content(ui)
                 })
                 .inner
         })
@@ -121,13 +177,13 @@ impl PaneDelegate for Pane {
 
     fn body(&mut self, ui: &mut Ui) {
         ui.separator();
-        self.control.windows(ui, &self.target);
-        self.body(ui);
+        self.windows(ui);
+        self.body_content(ui);
     }
 }
 
-pub(crate) mod control;
+pub(crate) mod settings;
 
 mod plot;
+mod state;
 mod table;
-mod widgets;

@@ -1,6 +1,6 @@
 use crate::{
     app::{
-        panes::calculation::control::{Fraction, From, Settings},
+        panes::calculation::settings::{Fraction, From, Settings},
         presets::CHRISTIE,
     },
     utils::polars::{ExprExt as _, SchemaExt},
@@ -32,7 +32,7 @@ pub(crate) struct Computer;
 
 impl Computer {
     fn try_compute(&mut self, key: Key) -> PolarsResult<DataFrame> {
-        match *key.index {
+        match key.settings.index {
             Some(index) => {
                 let frame = &key.frames[index];
                 let mut lazy_frame = frame.data.clone().lazy();
@@ -84,14 +84,12 @@ impl ComputerMut<Key<'_>, Value> for Computer {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Key<'a> {
     pub(crate) frames: &'a [MetaDataFrame],
-    pub(crate) index: &'a Option<usize>,
     pub(crate) settings: &'a Settings,
 }
 
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frames.hash(state);
-        self.index.hash(state);
         self.settings.hash(state);
     }
 }
@@ -101,7 +99,7 @@ type Value = DataFrame;
 
 fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
     // Christie
-    if settings.christie.apply {
+    if settings.christie {
         lazy_frame = christie(lazy_frame);
     }
     // Experimental

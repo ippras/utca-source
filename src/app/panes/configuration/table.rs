@@ -1,11 +1,13 @@
-use super::{ContextExt as _, control::Settings};
+use super::{ContextExt as _, ID_SOURCE, Settings, State};
 use crate::app::{
     panes::MARGIN,
     widgets::{FattyAcidWidget, FloatWidget},
 };
 use egui::{Context, Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
 use egui_phosphor::regular::{MINUS, PLUS};
-use egui_table::{AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate};
+use egui_table::{
+    AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
+};
 use lipid::fatty_acid::{
     FattyAcid,
     polars::{DataFrameExt as _, SeriesExt as _},
@@ -25,22 +27,33 @@ const LEN: usize = MAG2.end;
 pub(super) struct TableView<'a> {
     data_frame: &'a mut DataFrame,
     settings: &'a Settings,
-    event: Option<Event>,
+    state: &'a mut State,
+    // event: Option<Event>,
 }
 
 impl<'a> TableView<'a> {
-    pub(super) fn new(data_frame: &'a mut DataFrame, settings: &'a Settings) -> Self {
+    pub(super) fn new(
+        data_frame: &'a mut DataFrame,
+        settings: &'a Settings,
+        state: &'a mut State,
+    ) -> Self {
         Self {
             data_frame,
             settings,
-            event: None,
+            state,
+            // event: None,
         }
     }
 }
 
 impl TableView<'_> {
-    pub(super) fn show(&mut self, ui: &mut Ui) -> Option<Event> {
-        let id_salt = Id::new("ConfigurationTable");
+    pub(super) fn show(&mut self, ui: &mut Ui) {
+        let id_salt = Id::new(ID_SOURCE).with("Table");
+        if self.state.reset_table_state {
+            let id = TableState::id(ui, Id::new(id_salt));
+            TableState::reset(ui.ctx(), id);
+            self.state.reset_table_state = false;
+        }
         let height = ui.text_style_height(&TextStyle::Heading) + 2.0 * MARGIN.y;
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = LEN;
@@ -55,7 +68,6 @@ impl TableView<'_> {
             .headers([HeaderRow::new(height)])
             .auto_size_mode(AutoSizeMode::OnParentResize)
             .show(ui, self);
-        self.event
     }
 
     fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {
@@ -110,7 +122,7 @@ impl TableView<'_> {
             (row, INDEX) => {
                 if self.settings.editable {
                     if ui.button(MINUS).clicked() {
-                        self.event = Some(Event::DeleteRow(row));
+                        self.state.delete_row = Some(row);
                     }
                 }
                 let indices = self.data_frame[0].u32()?;
@@ -135,7 +147,7 @@ impl TableView<'_> {
                     .editable(self.settings.editable)
                     .hover()
                     .names(self.settings.names)
-                    .try_show(ui)?;
+                    .show(ui);
                 if let Some(value) = inner_response.inner {
                     self.data_frame
                         .try_apply("FattyAcid", change_fatty_acid(row, &value))?;
@@ -160,7 +172,7 @@ impl TableView<'_> {
             INDEX => {
                 if self.settings.editable {
                     if ui.button(PLUS).clicked() {
-                        self.event = Some(Event::AddRow);
+                        self.state.add_row = true;
                     }
                 }
             }
@@ -240,12 +252,12 @@ impl TableDelegate for TableView<'_> {
     }
 }
 
-/// Event
-#[derive(Clone, Copy, Debug)]
-pub(super) enum Event {
-    AddRow,
-    DeleteRow(usize),
-}
+// /// Event
+// #[derive(Clone, Copy, Debug)]
+// pub(super) enum Event {
+//     AddRow,
+//     DeleteRow(usize),
+// }
 
 fn change_label(row: usize, new: &str) -> impl FnMut(&Series) -> PolarsResult<Series> {
     move |series| {

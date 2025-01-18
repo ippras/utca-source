@@ -590,6 +590,17 @@ impl ContextExt for Context {
     }
 }
 
+/// Extension methods for [`Result`]
+pub trait ResultExt<T, E> {
+    fn context(self, ctx: &Context) -> Option<T>;
+}
+
+impl<T, E: Into<Error>> ResultExt<T, E> for Result<T, E> {
+    fn context(self, ctx: &Context) -> Option<T> {
+        self.map_err(|error| ctx.error(error)).ok()
+    }
+}
+
 mod computers;
 mod data;
 mod panes;

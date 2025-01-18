@@ -1,6 +1,10 @@
-use super::control::{From, Settings};
+use super::{
+    ID_SOURCE, State,
+    settings::{From, Settings},
+};
 use crate::{
     app::{
+        ContextExt as _,
         panes::MARGIN,
         widgets::{FattyAcidWidget, FloatWidget},
     },
@@ -41,40 +45,35 @@ const MIDDLE: &[Range<usize>] = &[
 pub(crate) struct TableView<'a> {
     data_frame: &'a DataFrame,
     settings: &'a Settings,
+    state: &'a mut State,
 }
 
 impl<'a> TableView<'a> {
-    pub(crate) fn new(data_frame: &'a DataFrame, settings: &'a Settings) -> Self {
+    pub(crate) fn new(
+        data_frame: &'a DataFrame,
+        settings: &'a Settings,
+        state: &'a mut State,
+    ) -> Self {
         Self {
             data_frame,
             settings,
+            state,
         }
     }
 }
 
 impl TableView<'_> {
     pub(crate) fn show(&mut self, ui: &mut Ui) {
-        let id_salt = Id::new("CalculationTable");
-        let id = TableState::id(ui, Id::new(id_salt));
-        println!("id: {id:?}");
-        println!("TableState: {:?}", TableState::load(ui.ctx(), id));
-        println!();
-
-        // println!(
-        //     "TableState: {:?}",
-        //     TableState::load(ui.ctx(), ui.make_persistent_id("CalculationTable"))
-        // );
-        if self.settings.reset {
-            // egui_table::Table::new().id_salt(id_salt).get_id(ui)
-            // let id = TableState::id(ui, id_salt);
-            // debug_assert!(TableState::load(ui.ctx(), id).is_some(), "Wrong state_id");
+        let id_salt = Id::new(ID_SOURCE).with("Table");
+        if self.state.reset_table_state {
+            let id = TableState::id(ui, Id::new(id_salt));
             TableState::reset(ui.ctx(), id);
-            self.settings.reset = false;
+            self.state.reset_table_state = false;
         }
         let height = ui.text_style_height(&TextStyle::Heading) + 2.0 * MARGIN.y;
         let num_rows = self.data_frame.height() as u64 + 1;
         let num_columns = LEN;
-        let t = Table::new()
+        Table::new()
             .id_salt(id_salt)
             .num_rows(num_rows)
             .columns(vec![
@@ -93,10 +92,8 @@ impl TableView<'_> {
                 },
                 HeaderRow::new(height),
             ])
-            .auto_size_mode(AutoSizeMode::OnParentResize);
-        println!("Table: {:?}", t.get_id(ui));
-        println!("TableState: {:?}", TableState::load(ui.ctx(), t.get_id(ui)));
-        t.show(ui, self);
+            .auto_size_mode(AutoSizeMode::OnParentResize)
+            .show(ui, self);
     }
 
     fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {
@@ -114,7 +111,7 @@ impl TableView<'_> {
             (0, THEORETICAL) => {
                 ui.heading(localize!("Theoretical"));
             }
-            (0, FACTORS) => {
+            (0, FACTORS) if self.settings.factors => {
                 ui.heading(localize!("Factors"));
             }
             // Middle
@@ -156,11 +153,11 @@ impl TableView<'_> {
                 ui.heading("DAG13")
                     .on_hover_text(format!("sn-13 {}", localize!("diacylglycerol")));
             }
-            (1, factors::EF) => {
+            (1, factors::EF) if self.settings.factors => {
                 ui.heading("EF")
                     .on_hover_text(localize!("enrichment_factor"));
             }
-            (1, factors::SF) => {
+            (1, factors::SF) if self.settings.factors => {
                 ui.heading("SF")
                     .on_hover_text(localize!("selectivity_factor"));
             }
@@ -209,7 +206,7 @@ impl TableView<'_> {
             (row, id::FA) => {
                 FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
                     .hover()
-                    .try_show(ui)?;
+                    .show(ui);
             }
             (row, experimental::TAG) => {
                 self.value(
@@ -218,8 +215,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Triacylglycerol")?,
                     Some(row),
+                    self.settings.percent,
                     false,
-                    true,
                 )?;
             }
             (row, experimental::DAG1223) => {
@@ -229,8 +226,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     Some(row),
+                    self.settings.percent,
                     self.settings.from != From::Dag1223,
-                    true,
                 )?;
             }
             (row, experimental::MAG2) => {
@@ -240,8 +237,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     Some(row),
+                    self.settings.percent,
                     self.settings.from != From::Mag2,
-                    true,
                 )?;
             }
             (row, theoretical::TAG) => {
@@ -251,7 +248,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Triacylglycerol")?,
                     Some(row),
-                    true,
+                    self.settings.percent,
                     true,
                 )?;
             }
@@ -262,7 +259,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     Some(row),
-                    true,
+                    self.settings.percent,
                     true,
                 )?;
             }
@@ -273,7 +270,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     Some(row),
-                    true,
+                    self.settings.percent,
                     true,
                 )?;
             }
@@ -286,8 +283,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     Some(row),
+                    self.settings.percent,
                     self.settings.from != From::Dag1223,
-                    true,
                 )?;
             }
             (row, theoretical::dag13::MAG2) => {
@@ -299,11 +296,11 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     Some(row),
+                    self.settings.percent,
                     self.settings.from != From::Mag2,
-                    true,
                 )?;
             }
-            (row, factors::ef::MAG2) => {
+            (row, factors::ef::MAG2) if self.settings.factors => {
                 self.value(
                     ui,
                     self.data_frame["Factors"]
@@ -316,7 +313,7 @@ impl TableView<'_> {
                     false,
                 )?;
             }
-            (row, factors::sf::MAG2) => {
+            (row, factors::sf::MAG2) if self.settings.factors => {
                 self.value(
                     ui,
                     self.data_frame["Factors"]
@@ -343,8 +340,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Triacylglycerol")?,
                     None,
+                    self.settings.percent,
                     false,
-                    true,
                 )?
                 .on_hover_text("∑ TAG");
             }
@@ -355,8 +352,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     None,
+                    self.settings.percent,
                     self.settings.from != From::Dag1223,
-                    true,
                 )?
                 .on_hover_text("∑ DAG1223");
             }
@@ -367,8 +364,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     None,
+                    self.settings.percent,
                     self.settings.from != From::Mag2,
-                    true,
                 )?
                 .on_hover_text("∑ MAG2");
             }
@@ -379,7 +376,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Triacylglycerol")?,
                     None,
-                    true,
+                    self.settings.percent,
                     true,
                 )?
                 .on_hover_text("∑ TAG");
@@ -391,7 +388,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     None,
-                    true,
+                    self.settings.percent,
                     true,
                 )?
                 .on_hover_text("∑ DAG1223");
@@ -403,7 +400,7 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     None,
-                    true,
+                    self.settings.percent,
                     true,
                 )?
                 .on_hover_text("∑ MAG2");
@@ -417,8 +414,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Diacylglycerol1223")?,
                     None,
+                    self.settings.percent,
                     self.settings.from != From::Dag1223,
-                    true,
                 )?
                 .on_hover_text("∑ DAG13");
             }
@@ -431,8 +428,8 @@ impl TableView<'_> {
                         .struct_()?
                         .field_by_name("Monoacylglycerol2")?,
                     None,
+                    self.settings.percent,
                     self.settings.from != From::Mag2,
-                    true,
                 )?
                 .on_hover_text("∑ DAG13");
             }
@@ -446,8 +443,8 @@ impl TableView<'_> {
         ui: &mut Ui,
         series: Series,
         row: Option<usize>,
-        disable: bool,
         percent: bool,
+        disable: bool,
     ) -> PolarsResult<Response> {
         Ok(if let Some(r#struct) = series.try_struct() {
             let mean = if let Some(row) = row {
@@ -514,8 +511,12 @@ impl TableDelegate for TableView<'_> {
         Frame::none()
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
-                self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
-                    .unwrap()
+                if let Err(error) =
+                    self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
+                {
+                    ui.ctx()
+                        .error(error.context("Calculation table cell ui".into()));
+                }
             });
     }
 }

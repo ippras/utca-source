@@ -1,11 +1,14 @@
-use crate::{app::ResultExt, localize, try_localize};
-use egui::{Align, DragValue, Grid, InnerResponse, Layout, Ui, Widget, style::Widgets, vec2};
+use egui::{
+    Align, DragValue, Grid, InnerResponse, Layout, Sense, Ui, Widget, style::Widgets, vec2,
+};
 use lipid::fatty_acid::{
     FattyAcid, FattyAcidExt as _, Isomerism, Unsaturated, Unsaturation,
     display::{COMMON, DisplayWithOptions, ID},
 };
 use polars::prelude::*;
-use std::{cmp::Ordering, mem::replace};
+use std::cmp::Ordering;
+
+use crate::{localize, try_localize};
 
 /// Fatty acid widget
 pub(crate) struct FattyAcidWidget<'a> {
@@ -42,26 +45,20 @@ impl<'a> FattyAcidWidget<'a> {
 }
 
 impl FattyAcidWidget<'_> {
-    pub(crate) fn try_show(self, ui: &mut Ui) -> InnerResponse<PolarsResult<Option<FattyAcid>>> {
-        // let Some(fatty_acid) = &(self.value)()? else {
-        //     return Ok(InnerResponse::new(
-        //         None,
-        //         ui.allocate_response(Default::default(), Sense::hover()),
-        //     ));
-        // };
+    pub(crate) fn try_show(self, ui: &mut Ui) -> PolarsResult<InnerResponse<Option<FattyAcid>>> {
+        let Some(fatty_acid) = &(self.value)()? else {
+            return Ok(InnerResponse::new(
+                None,
+                ui.allocate_response(Default::default(), Sense::hover()),
+            ));
+        };
         // let text = match &fatty_acid {
         //     Some(fatty_acid) => &format!("{:#}", fatty_acid.display(COMMON)),
         //     None => "",
         // };
-        let mut inner = (self.value)();
-        let Ok(Some(mut fatty_acid)) = replace(&mut inner, Ok(None)) else {
-            // Null
-            let response = ui.label(AnyValue::Null.to_string());
-            return InnerResponse::new(inner, response);
-        };
-        let text = &format!("{:#}", (&fatty_acid).display(COMMON));
+        let text = &format!("{:#}", fatty_acid.display(COMMON));
+        let mut inner = None;
         let mut response = if self.editable {
-            // Writable
             ui.add_sized(
                 vec2(ui.available_width(), ui.style().spacing.interact_size.y),
                 |ui: &mut Ui| {
@@ -73,11 +70,13 @@ impl FattyAcidWidget<'_> {
                         };
                         ui.visuals_mut().widgets.inactive.weak_bg_fill =
                             widgets.active.weak_bg_fill;
-                        // let mut fatty_acid = fatty_acid.clone();
+                        let mut fatty_acid = fatty_acid.clone();
                         Grid::new(ui.next_auto_id()).show(ui, |ui| {
                             // Carbons
                             ui.label("Carbons");
-                            ui.add(DragValue::new(&mut fatty_acid.carbons));
+                            if DragValue::new(&mut fatty_acid.carbons).ui(ui).changed() {
+                                inner = Some(fatty_acid.clone());
+                            }
                             ui.end_row();
 
                             // Unsaturated
@@ -143,7 +142,7 @@ impl FattyAcidWidget<'_> {
                                             unsaturated.unsaturation,
                                         )
                                     });
-                                    inner = Ok(Some(fatty_acid.clone()));
+                                    inner = Some(fatty_acid.clone());
                                 }
                             });
                             let mut unsaturated = fatty_acid.unsaturated.len();
@@ -171,7 +170,7 @@ impl FattyAcidWidget<'_> {
                                             }
                                         }
                                     }
-                                    inner = Ok(Some(fatty_acid.clone()));
+                                    inner = Some(fatty_acid.clone());
                                 }
                             });
                         });
@@ -180,10 +179,8 @@ impl FattyAcidWidget<'_> {
                 },
             )
         } else {
-            // Readable
             ui.label(text)
         };
-        // Hover
         if self.hover {
             response = response.on_hover_text(text);
             if self.names {
@@ -214,7 +211,7 @@ impl FattyAcidWidget<'_> {
                 });
             }
         }
-        InnerResponse::new(inner, response)
+        Ok(InnerResponse::new(inner, response))
     }
 
     pub(crate) fn show(self, ui: &mut Ui) -> InnerResponse<Option<FattyAcid>> {

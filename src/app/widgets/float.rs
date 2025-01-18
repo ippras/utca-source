@@ -1,3 +1,4 @@
+use crate::app::ResultExt as _;
 use egui::{DragValue, InnerResponse, RichText, Ui, Widget, vec2};
 use polars::prelude::*;
 
@@ -40,51 +41,51 @@ impl<'a> FloatWidget<'a> {
         self
     }
 
-    pub(crate) fn try_show(self, ui: &mut Ui) -> PolarsResult<InnerResponse<Option<f64>>> {
+    pub(crate) fn try_show(self, ui: &mut Ui) -> InnerResponse<PolarsResult<Option<f64>>> {
         let format = |value: f64| match self.settings.precision {
             Some(precision) => format!("{value:.precision$}"),
             None => AnyValue::from(value).to_string(),
         };
-        let mut inner = None;
         if self.settings.disable {
             ui.disable();
         }
-        let response = if let Some(mut value) = (self.value)()? {
-            // Percent
-            if self.settings.percent {
-                value *= 100.0;
-            }
-            // Editable
-            let mut response = if self.settings.editable {
-                // Writable
-                let response = ui.add_sized(
-                    vec2(ui.available_width(), ui.style().spacing.interact_size.y),
-                    DragValue::new(&mut value)
-                        .range(0.0..=f64::MAX)
-                        .custom_formatter(|value, _| format(value)),
-                );
-                if response.changed() {
-                    inner = Some(value)
-                }
-                response
-            } else {
-                // Readable
-                ui.label(format(value))
-            };
-            if self.settings.hover {
-                response =
-                    response.on_hover_text(RichText::new(AnyValue::Float64(value).to_string()));
+        let mut inner = (self.value)();
+        let Ok(Some(mut value)) = inner else {
+            // Null
+            let response = ui.label(AnyValue::Null.to_string());
+            return InnerResponse::new(inner, response);
+        };
+        // Percent
+        if self.settings.percent {
+            value *= 100.0;
+        }
+        // Editable
+        let mut response = if self.settings.editable {
+            // Writable
+            let response = ui.add_sized(
+                vec2(ui.available_width(), ui.style().spacing.interact_size.y),
+                DragValue::new(&mut value)
+                    .range(0.0..=f64::MAX)
+                    .custom_formatter(|value, _| format(value)),
+            );
+            if response.changed() {
+                inner = Ok(Some(value));
             }
             response
         } else {
-            // Null
-            ui.label(AnyValue::Null.to_string())
+            // Readable
+            ui.label(format(value))
         };
-        Ok(InnerResponse::new(inner, response))
+        if self.settings.hover {
+            response = response.on_hover_text(RichText::new(AnyValue::Float64(value).to_string()));
+        }
+        InnerResponse::new(inner, response)
     }
 
     pub(crate) fn show(self, ui: &mut Ui) -> InnerResponse<Option<f64>> {
-        self.try_show(ui).expect("Float widget")
+        let InnerResponse { inner, response } = self.try_show(ui);
+        let inner = inner.context(ui.ctx()).flatten();
+        InnerResponse::new(inner, response)
     }
 }
 

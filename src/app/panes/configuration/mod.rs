@@ -1,27 +1,27 @@
-use self::{
-    control::Control,
-    table::{Event, TableView},
-};
+use self::{settings::Settings, state::State, table::TableView};
 use super::PaneDelegate;
 use crate::{
-    app::ContextExt,
+    app::{ContextExt, ResultExt},
     localize,
-    utils::{polars::DataFrameExt, save},
+    utils::save,
 };
 use anyhow::Result;
 use egui::{
-    CursorIcon, DragValue, Grid, Id, Response, RichText, ScrollArea, Ui, menu::bar, util::hash,
+    CursorIcon, DragValue, Grid, Id, Response, RichText, ScrollArea, Ui, Window, menu::bar,
+    util::hash,
 };
 use egui_extras::{Column, DatePickerButton, TableBuilder};
 use egui_phosphor::regular::{
-    ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL, PENCIL, TAG, TRASH,
+    ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL,
+    PENCIL, TAG, TRASH,
 };
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
-use tracing::error;
+
+const ID_SOURCE: &str = "Configuration";
 
 pub(crate) static SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
     Schema::from_iter([
@@ -51,14 +51,16 @@ pub(crate) static SCHEMA: LazyLock<Schema> = LazyLock::new(|| {
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Pane {
     pub(crate) frames: Vec<MetaDataFrame>,
-    pub(crate) control: Control,
+    pub(crate) settings: Settings,
+    state: State,
 }
 
 impl Pane {
     pub(crate) const fn new(frames: Vec<MetaDataFrame>) -> Self {
         Self {
             frames,
-            control: Control::new(),
+            settings: Settings::new(),
+            state: State::new(),
         }
     }
 
@@ -67,12 +69,12 @@ impl Pane {
     }
 
     pub(crate) fn title(&self) -> String {
-        self.frames[self.control.index].meta.title()
+        self.frames[self.settings.index].meta.title()
     }
 
     fn header_content(&mut self, ui: &mut Ui) -> Response {
         let mut response = ui
-            .heading(NOTE_PENCIL)
+            .heading(Self::icon())
             .on_hover_text(localize!("configuration"));
         response |= ui.heading(self.title());
         response = response
@@ -84,7 +86,7 @@ impl Pane {
             for index in 0..self.frames.len() {
                 if ui
                     .selectable_value(
-                        &mut self.control.index,
+                        &mut self.settings.index,
                         index,
                         self.frames[index].meta.title(),
                     )
@@ -97,50 +99,54 @@ impl Pane {
         .response
         .on_hover_text(localize!("list"));
         ui.separator();
+        // Reset
+        if ui
+            .button(RichText::new(ARROWS_CLOCKWISE).heading())
+            .clicked()
+        {
+            self.state.reset_table_state = true;
+        }
         // Resize
         ui.toggle_value(
-            &mut self.control.settings.resizable,
+            &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
         // Edit
-        ui.toggle_value(
-            &mut self.control.settings.editable,
-            RichText::new(PENCIL).heading(),
-        )
-        .on_hover_text(localize!("edit"));
+        ui.toggle_value(&mut self.settings.editable, RichText::new(PENCIL).heading())
+            .on_hover_text(localize!("edit"));
         // Clear
         ui.add_enabled_ui(
-            self.control.settings.editable && self.frames[self.control.index].data.height() > 0,
+            self.settings.editable && self.frames[self.settings.index].data.height() > 0,
             |ui| {
                 if ui
                     .button(RichText::new(ERASER).heading())
                     .on_hover_text(localize!("clear"))
                     .clicked()
                 {
-                    let data_frame = &mut self.frames[self.control.index].data;
+                    let data_frame = &mut self.frames[self.settings.index].data;
                     *data_frame = data_frame.clear();
                 }
             },
         );
         // Delete
-        ui.add_enabled_ui(
-            self.control.settings.editable && self.frames.len() > 1,
-            |ui| {
-                if ui
-                    .button(RichText::new(TRASH).heading())
-                    .on_hover_text(localize!("delete"))
-                    .clicked()
-                {
-                    self.frames.remove(self.control.index);
-                    self.control.index = 0;
-                }
-            },
-        );
+        ui.add_enabled_ui(self.settings.editable && self.frames.len() > 1, |ui| {
+            if ui
+                .button(RichText::new(TRASH).heading())
+                .on_hover_text(localize!("delete"))
+                .clicked()
+            {
+                self.frames.remove(self.settings.index);
+                self.settings.index = 0;
+            }
+        });
         ui.separator();
         // Settings
-        ui.toggle_value(&mut self.control.open, RichText::new(GEAR).heading())
-            .on_hover_text(localize!("settings"));
+        ui.toggle_value(
+            &mut self.state.open_settings_window,
+            RichText::new(GEAR).heading(),
+        )
+        .on_hover_text(localize!("settings"));
         ui.separator();
         // Save
         if ui
@@ -163,7 +169,7 @@ impl Pane {
             ui.data_mut(|data| {
                 data.insert_temp(
                     Id::new("Calculate"),
-                    (self.frames.clone(), self.control.index),
+                    (self.frames.clone(), self.settings.index),
                 );
             });
         }
@@ -346,18 +352,19 @@ impl Pane {
 
     fn body_data(&mut self, ui: &mut Ui, index: usize) {
         let data_frame = &mut self.frames[index].data;
-        if let Some(event) = TableView::new(data_frame, &self.control.settings).show(ui) {
-            if let Err(error) = match event {
-                Event::AddRow => self.add_row(),
-                Event::DeleteRow(row) => self.delete_row(row),
-            } {
-                error!(%error);
-            }
+        TableView::new(data_frame, &self.settings, &mut self.state).show(ui);
+        if self.state.add_row {
+            self.add_row().context(ui.ctx());
+            self.state.add_row = false;
+        }
+        if let Some(index) = self.state.delete_row {
+            self.delete_row(index).context(ui.ctx());
+            self.state.delete_row = None;
         }
     }
 
     fn add_row(&mut self) -> PolarsResult<()> {
-        let data_frame = &mut self.frames[self.control.index].data;
+        let data_frame = &mut self.frames[self.settings.index].data;
         *data_frame = concat(
             [
                 data_frame.clone().lazy(),
@@ -391,7 +398,7 @@ impl Pane {
     }
 
     fn delete_row(&mut self, row: usize) -> PolarsResult<()> {
-        let data_frame = &mut self.frames[self.control.index].data;
+        let data_frame = &mut self.frames[self.settings.index].data;
         let mut lazy_frame = data_frame.clone().lazy();
         lazy_frame = lazy_frame
             .filter(nth(0).neq(lit(row as u32)))
@@ -400,13 +407,21 @@ impl Pane {
         Ok(())
     }
 
+    pub(crate) fn windows(&mut self, ui: &mut Ui) {
+        Window::new(format!("{GEAR} Configuration settings"))
+            .id(ui.next_auto_id())
+            .default_pos(ui.next_widget_position())
+            .open(&mut self.state.open_settings_window)
+            .show(ui.ctx(), |ui| self.settings.show(ui));
+    }
+
     fn hash(&self) -> u64 {
         hash(&self.frames)
     }
 
     fn save(&mut self) -> Result<()> {
         let name = format!("{}.utca.ipc", self.title());
-        save(&name, &mut self.frames[self.control.index])?;
+        save(&name, &mut self.frames[self.settings.index])?;
         Ok(())
     }
 }
@@ -425,16 +440,15 @@ impl PaneDelegate for Pane {
     }
 
     fn body(&mut self, ui: &mut Ui) {
-        self.control.windows(ui);
-        if self.control.settings.editable {
-            self.body_meta(ui, self.control.index);
+        self.windows(ui);
+        if self.settings.editable {
+            self.body_meta(ui, self.settings.index);
         }
-        self.body_data(ui, self.control.index);
+        self.body_data(ui, self.settings.index);
     }
 }
 
-pub(crate) mod control;
+pub(crate) mod settings;
 
-mod names;
-mod properties;
+mod state;
 mod table;
