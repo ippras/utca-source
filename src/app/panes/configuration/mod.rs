@@ -177,7 +177,7 @@ impl Pane {
         response
     }
 
-    fn body_meta(&mut self, ui: &mut Ui, index: usize) {
+    fn body_content_meta(&mut self, ui: &mut Ui, index: usize) {
         ui.style_mut().visuals.collapsing_header_frame = true;
         ui.collapsing(RichText::new(format!("{TAG} Metadata")).heading(), |ui| {
             let height = ui.style().spacing.interact_size.y;
@@ -350,7 +350,7 @@ impl Pane {
         });
     }
 
-    fn body_data(&mut self, ui: &mut Ui, index: usize) {
+    fn body_content_data(&mut self, ui: &mut Ui, index: usize) {
         let data_frame = &mut self.frames[index].data;
         TableView::new(data_frame, &self.settings, &mut self.state).show(ui);
         if self.state.add_row {
@@ -442,9 +442,9 @@ impl PaneDelegate for Pane {
     fn body(&mut self, ui: &mut Ui) {
         self.windows(ui);
         if self.settings.editable {
-            self.body_meta(ui, self.settings.index);
+            self.body_content_meta(ui, self.settings.index);
         }
-        self.body_data(ui, self.settings.index);
+        self.body_content_data(ui, self.settings.index);
     }
 }
 
