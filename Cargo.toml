@@ -1,6 +1,6 @@
 [package]
 name = "utca"
-version = "0.41.0"
+version = "0.41.1"
 edition = "2024"
 
 [dependencies]
@@ -29,7 +29,6 @@ egui_tiles_ext = { git = "https://github.com/kgv/egui_tiles_ext" }
 ehttp = { version = "0.5.0", features = ["json", "native-async"] }
 fluent = "0.16.1"
 fluent_content = "0.0.5"
-git-version = "0.3.9"
 indexmap = { version = "2.7.0", features = ["serde"] }
 intl-memoizer = "0.5.2"
 itertools = "0.14.0"
