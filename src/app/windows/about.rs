@@ -1,9 +1,8 @@
 use crate::app::ICON_SIZE;
 use egui::{Context, Id, Label, RichText, Sense, Window};
 use egui_phosphor::regular::{COPYRIGHT, GITHUB_LOGO, GLOBE, INFO, WARNING};
-use git_version::git_version;
 
-/// About
+/// About window
 #[derive(Debug, Default)]
 pub(crate) struct About {
     pub(crate) open: bool,
@@ -30,9 +29,6 @@ impl About {
                 // );
                 // ctx.frame_nr()
                 ui.vertical_centered(|ui| {
-                    const GIT_VERSION: &str = git_version!();
-                    println!("GIT_VERSION: {GIT_VERSION}");
-
                     let version = env!("CARGO_PKG_VERSION");
                     ui.label(format!("UTCA {version}"));
                     ui.label("Ultimate TAG Calculation Application");

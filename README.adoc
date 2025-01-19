@@ -1,5 +1,29 @@
 = UTCA
 
+image:https://img.shields.io/github/v/release/ippras/utca-source?label=Version&sort=semver[Version]
+image:https://img.shields.io/github/license/ippras/utca-source?label=License[License, link=license]
+image:https://img.shields.io/github/actions/workflow/status/ippras/utca-source/rust.yml?logo=github&label=Rust[Rust, link=https://github.com/ippras/utca-source/actions/workflows/rust.yml]
+image:https://img.shields.io/github/actions/workflow/status/ippras/utca-source/pages.yml?logo=github&label=Github Pages[Github Pages, link=https://github.com/ippras/utca-source/actions/workflows/pages.yml]
+
+Ultimate Triacylglycerol Calculation Application
+
+== Documentation
+
+|===
+|link:doc/en-US.adoc[English 🇺🇸] | link:doc/ru-RU.adoc[Русский 🇷🇺]
+|===
+
+== See Also
+
+== Dedication
+
+== TODO
+
+Листы отдельно, последний отображаемый элемент - отдельно
+Иначе фильтр будет применяться к листам, и будет несоответствие
+
+== TEMP
+
 SafeNet, Inc.
 SafeNet USB SuperPro/UltraPro
 https://vipdongle.com/mp/sentinel-dongle/
@@ -7,28 +31,13 @@ https://exetools.forumotion.com/t8-emulate-superpro-dongle-in-64-bit-windows-usi
 https://dongla.net/sentinel.html
 https://xakep.ru/2007/02/07/36659/
 
-Листы отдельно, последний отображаемый элемент - отдельно
-Иначе фильтр будет применяться к листам, и будет несоответствие
-
 .Удалить пробелы межру виджетами
 `ui.spacing_mut().item_spacing.x = 0.0;`
 
 `$env:RUST_LOG="ms_viewer=trace"`
 
 link:https://www.online-convert.com/[SVG to PNG]
-🝐
-🜎
-🝆
-🜁
-🜃🜄
 
-Ultimate TAG Calculation Application
-
-image:https://img.shields.io/crates/v/bevy_fluent.svg[crates.io, link=https://crates.io/crates/bevy_fluent]
-image:https://docs.rs/bevy_fluent/badge.svg[docs.rs, link=https://docs.rs/bevy_fluent]
-image:https://img.shields.io/crates/l/bevy_fluent[license, link==license]
-image:https://github.com/kgv/bevy_fluent/workflows/ci/badge.svg[ci, link=https://github.com/kgv/bevy_fluent/actions]
-image:https://img.shields.io/badge/bevy%20tracking-main-yellow[bevy tracking, link=https://github.com/bevyengine/bevy/blob/master/docs/plugins_guidelines.md=master-branch-tracking]
 
 == Run
 
