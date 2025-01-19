@@ -127,24 +127,41 @@ impl Computer {
             Some(index) => {
                 let frame = &key.frames[index];
                 let mut lazy_frame = frame.data.clone().lazy();
-                lazy_frame = lazy_frame.select([
-                    col("Index"),
-                    col("Label"),
-                    col("FattyAcid"),
-                    col("Calculated")
-                        .struct_()
-                        .field_by_names(["Monoacylglycerol2", "Diacylglycerol13"]),
-                ]);
-                lazy_frame = vander_wal(lazy_frame, key.settings)?;
-                // Filter
-                lazy_frame = filter(lazy_frame, key.settings);
-                // Sort
-                lazy_frame = sort(lazy_frame, key.settings);
-                // Index
-                lazy_frame = lazy_frame.with_row_index("Index", None);
+                lazy_frame = compute(lazy_frame, key.settings)?;
                 lazy_frame.collect()
             }
             None => {
+                let compute = |frame: &MetaDataFrame| -> PolarsResult<LazyFrame> {
+                    Ok(compute(frame.data.clone().lazy(), key.settings)?
+                    // .select([
+                    //     col("Label"),
+                    //     col("FattyAcid").struct_().field_by_name("*"),
+                    //     as_struct(vec![
+                    //         col("Experimental"),
+                    //         col("Theoretical"),
+                    //         col("Calculated"),
+                    //         col("Factors"),
+                    //     ])
+                    //     .alias(frame.meta.title()),
+                    // ])
+                )
+                };
+                let frame = &key.frames[0];
+                println!(
+                    "lazy_frame g0: {}",
+                    frame.data.clone().lazy().collect().unwrap()
+                );
+                let mut lazy_frame = compute(frame)?;
+                println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
+                // for frame in &key.frames[1..] {
+                //     lazy_frame = lazy_frame.join(
+                //         compute(frame)?,
+                //         [col("Label"), col("Carbons"), col("Unsaturated")],
+                //         [col("Label"), col("Carbons"), col("Unsaturated")],
+                //         JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
+                //     );
+                // }
+                // println!("lazy_frame g2: {}", lazy_frame.clone().collect().unwrap());
                 unimplemented!()
             }
         }
@@ -281,6 +298,25 @@ impl Hash for Key<'_> {
 /// Composition value
 type Value = DataFrame;
 
+fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+    lazy_frame = lazy_frame.select([
+        col("Index"),
+        col("Label"),
+        col("FattyAcid"),
+        col("Calculated")
+            .struct_()
+            .field_by_names(["Monoacylglycerol2", "Diacylglycerol13"]),
+    ]);
+    lazy_frame = vander_wal(lazy_frame, settings)?;
+    // Filter
+    lazy_frame = filter(lazy_frame, settings);
+    // Sort
+    lazy_frame = sort(lazy_frame, settings);
+    // Index
+    lazy_frame = lazy_frame.with_row_index("Index", None);
+    Ok(lazy_frame)
+}
+
 // 1,3-sn 2-sn 1,2,3-sn
 // PSC:
 // [abc] = 2*[a_{13}]*[_b2]*[c_{13}]
@@ -369,48 +405,6 @@ fn cartesian_product(mut lazy_frame: LazyFrame) -> PolarsResult<LazyFrame> {
 }
 
 fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
-    // lazy_frame = lazy_frame.with_columns([
-    //     col("FattyAcid")
-    //         .tag()
-    //         .mass(lit(settings.adduct))
-    //         .round(1)
-    //         .alias("MC"),
-    //     col("FattyAcid")
-    //         .tag()
-    //         .map(|expr| expr.fa().ecn())
-    //         .alias("NC"),
-    //     col("FattyAcid")
-    //         .tag()
-    //         .map(|expr| expr.fa().unsaturated().sum())
-    //         .alias("UC"),
-    //     col("FattyAcid")
-    //         .tag()
-    //         .non_stereospecific(
-    //             |expr| expr.fa().is_saturated(),
-    //             StereospecificOptions::default().map(true),
-    //         )?
-    //         .alias("TC"),
-    //     col("FattyAcid")
-    //         .tag()
-    //         .positional(
-    //             |expr| expr.fa().is_saturated(),
-    //             StereospecificOptions::default().map(true),
-    //         )
-    //         .alias("PTC"),
-    //     col("FattyAcid")
-    //         .tag()
-    //         .map(|expr| expr.fa().is_saturated())
-    //         .alias("STC"),
-    //     col("Label")
-    //         .tag()
-    //         .non_stereospecific(identity, StereospecificOptions::default())?
-    //         .alias("SC"),
-    //     col("Label")
-    //         .tag()
-    //         .positional(identity, StereospecificOptions::default())
-    //         .alias("PSC"),
-    //     col("Label").alias("SSC"),
-    // ]);
     let mut groups = settings.groups.clone();
     if groups.is_empty() {
         groups.push_back(Group {
