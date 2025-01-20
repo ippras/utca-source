@@ -242,7 +242,8 @@ impl Settings {
                         ));
                         // Key
                         let mut is_open = false;
-                        let t = AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
+                        let hover =
+                            AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
                         ui.horizontal(|ui| {
                             let id_salt = "FattyAcidsFilter";
                             ComboBox::from_id_salt(id_salt)
@@ -256,6 +257,10 @@ impl Settings {
                                         .struct_()
                                         .unwrap()
                                         .field_by_name("Key")
+                                        .unwrap()
+                                        .unique()
+                                        .unwrap()
+                                        .sort(Default::default())
                                         .unwrap();
                                     // println!("composition: {:?}", key.str_value(0));
                                     for index in 0..key.len() {
@@ -274,7 +279,7 @@ impl Settings {
                                     Ok(())
                                 })
                                 .response
-                                .on_hover_text(t.str_value());
+                                .on_hover_text(hover.str_value());
                             let id = ui.make_persistent_id(Id::new(id_salt));
                             is_open = ComboBox::is_open(ui.ctx(), id);
                             if ui.button(TRASH).clicked() {
@@ -388,7 +393,6 @@ impl Default for Settings {
 
 impl Hash for Settings {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.index.hash(state);
         self.percent.hash(state);
         self.precision.hash(state);
         self.resizable.hash(state);

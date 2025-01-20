@@ -9,7 +9,7 @@ use crate::{
     localize,
 };
 use egui::{
-    CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, Window, menu::bar, util::hash,
+    menu::bar, util::hash, CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, Window,
 };
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHART_BAR, CHECK, GEAR, INTERSECT_THREE, LIST,
@@ -123,7 +123,10 @@ impl Pane {
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
                     frames: &self.source,
-                    settings: &self.settings.confirmed,
+                    settings: &Settings {
+                        index: self.settings.confirmed.index,
+                        ..self.settings.unconfirmed.clone()
+                    },
                 })
         });
         // if self.plot {

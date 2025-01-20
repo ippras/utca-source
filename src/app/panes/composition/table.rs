@@ -1,6 +1,6 @@
 use super::{ID_SOURCE, Settings, State};
 use crate::{
-    app::{panes::MARGIN, text::Text, widgets::FloatWidget},
+    app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
@@ -129,11 +129,11 @@ impl TableView<'_> {
                 ui.label(row.to_string());
             }
             (row, column) => {
-                let index = (column.start + 1) / 2;
-                let composition = self.data_frame[index].struct_()?;
+                let index = (column.start + 1) / 2 - 1;
                 if column.start % 2 == 1 {
-                    let key = composition.field_by_name("Key")?;
-                    match self.settings.groups[index - 1].composition {
+                    let keys = self.data_frame["Keys"].struct_()?;
+                    let key = &keys.fields_as_series()[index];
+                    match self.settings.groups[index].composition {
                         MC => {
                             FloatWidget::new(|| Ok(key.f64()?.get(row)))
                                 .hover()
@@ -192,28 +192,31 @@ impl TableView<'_> {
                         }
                     }
                 } else {
-                    FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.get(row)))
+                    let values = self.data_frame["Values"].struct_()?;
+                    let value = &values.fields_as_series()[index];
+                    FloatWidget::new(|| Ok(value.f64()?.get(row)))
                         .percent(self.settings.percent)
                         .precision(Some(self.settings.precision))
                         .hover()
                         .show(ui);
                 }
             }
+            _ => {}
         }
         Ok(())
     }
 
     fn footer_cell_content_ui(&mut self, ui: &mut Ui, column: Range<usize>) -> PolarsResult<()> {
-        // Last
-        let index = self.settings.groups.len();
-        if column.start == index * 2 {
-            let composition = self.data_frame[index].struct_()?;
-            FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.sum()))
-                .percent(self.settings.percent)
-                .precision(Some(self.settings.precision))
-                .hover()
-                .show(ui);
-        }
+        // // Last
+        // let index = self.settings.groups.len();
+        // if column.start == index * 2 {
+        //     let composition = self.data_frame[index].struct_()?;
+        //     FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.sum()))
+        //         .percent(self.settings.percent)
+        //         .precision(Some(self.settings.precision))
+        //         .hover()
+        //         .show(ui);
+        // }
         Ok(())
     }
 }
@@ -238,7 +241,7 @@ impl TableDelegate for TableView<'_> {
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
                 self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
-                    .unwrap()
+                    .context(ui.ctx())
             });
     }
 }

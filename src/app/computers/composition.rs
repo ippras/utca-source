@@ -123,6 +123,7 @@ pub(crate) struct Computer;
 
 impl Computer {
     fn try_compute(&mut self, key: Key) -> PolarsResult<Value> {
+        println!("index: {:?}", key.settings.index);
         match key.settings.index {
             Some(index) => {
                 let frame = &key.frames[index];
@@ -132,19 +133,10 @@ impl Computer {
             }
             None => {
                 let compute = |frame: &MetaDataFrame| -> PolarsResult<LazyFrame> {
-                    Ok(compute(frame.data.clone().lazy(), key.settings)?
-                    // .select([
-                    //     col("Label"),
-                    //     col("FattyAcid").struct_().field_by_name("*"),
-                    //     as_struct(vec![
-                    //         col("Experimental"),
-                    //         col("Theoretical"),
-                    //         col("Calculated"),
-                    //         col("Factors"),
-                    //     ])
-                    //     .alias(frame.meta.title()),
-                    // ])
-                )
+                    Ok(compute(frame.data.clone().lazy(), key.settings)?.select([
+                        col("Keys").struct_().field_by_name("*"),
+                        as_struct(vec![col("Values"), col("Species")]).alias(frame.meta.title()),
+                    ]))
                 };
                 let frame = &key.frames[0];
                 println!(
@@ -153,15 +145,19 @@ impl Computer {
                 );
                 let mut lazy_frame = compute(frame)?;
                 println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
-                // for frame in &key.frames[1..] {
-                //     lazy_frame = lazy_frame.join(
-                //         compute(frame)?,
-                //         [col("Label"), col("Carbons"), col("Unsaturated")],
-                //         [col("Label"), col("Carbons"), col("Unsaturated")],
-                //         JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
-                //     );
-                // }
-                // println!("lazy_frame g2: {}", lazy_frame.clone().collect().unwrap());
+                let mut exprs = Vec::new();
+                for index in 0..key.settings.groups.len() {
+                    exprs.push(col(format!("Composition{index}")));
+                }
+                for frame in &key.frames[1..] {
+                    lazy_frame = lazy_frame.join(
+                        compute(frame)?,
+                        &exprs,
+                        &exprs,
+                        JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
+                    );
+                }
+                println!("lazy_frame g2: {}", lazy_frame.clone().collect().unwrap());
                 unimplemented!()
             }
         }
@@ -292,6 +288,7 @@ impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frames.hash(state);
         self.settings.hash(state);
+        self.settings.index.hash(state);
     }
 }
 
@@ -458,19 +455,26 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
     lazy_frame = lazy_frame
         .group_by([col(r#"^Composition\d$"#), col(r#"^Value\d$"#)])
         .agg([as_struct(vec![col("Label"), col("FattyAcid"), col("Value")]).alias("Species")]);
-    // Restruct
-    let mut exprs = Vec::new();
-    for index in 0..settings.groups.len() {
-        exprs.push(
-            as_struct(vec![
-                col(&format!("Composition{index}")).alias("Key"),
-                col(&format!("Value{index}")).alias("Value"),
-            ])
-            .alias(format!("Composition{index}")),
-        );
-    }
-    exprs.push(col("Species"));
-    Ok(lazy_frame.select(exprs))
+    // // Restruct
+    // let mut exprs = Vec::new();
+    // for index in 0..settings.groups.len() {
+    //     exprs.push(
+    //         as_struct(vec![
+    //             col(&format!("Composition{index}")).alias("Key"),
+    //             col(&format!("Value{index}")).alias("Value"),
+    //         ])
+    //         .alias(format!("Composition{index}")),
+    //     );
+    // }
+    // exprs.push(col("Species"));
+    println!("lazy_frame x0: {}", lazy_frame.clone().collect().unwrap());
+    lazy_frame = lazy_frame.select([
+        as_struct(vec![col(r#"^Composition\d$"#)]).alias("Keys"),
+        as_struct(vec![col(r#"^Value\d$"#)]).alias("Values"),
+        col("Species"),
+    ]);
+    println!("lazy_frame x1: {}", lazy_frame.clone().collect().unwrap());
+    Ok(lazy_frame)
 }
 
 fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
@@ -478,9 +482,9 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
         let mut predicate = lit(true);
         for (index, group) in settings.groups.iter().enumerate() {
             predicate = predicate.and(
-                col(&format!("Composition{index}"))
+                col("Values")
                     .struct_()
-                    .field_by_name("Value")
+                    .field_by_index(index as _)
                     .gt(lit(group.filter.value)),
             );
         }
@@ -497,15 +501,20 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
             .with_nulls_last(true);
     }
     lazy_frame = match settings.sort {
-        Sort::Key => lazy_frame.sort_by_exprs(
-            [col(r#"^Composition\d$"#).struct_().field_by_name("Key")],
-            sort_options,
-        ),
-        Sort::Value => lazy_frame.sort_by_exprs(
-            [col(r#"^Composition\d$"#).struct_().field_by_name("Value")],
-            sort_options,
-        ),
+        Sort::Key => {
+            lazy_frame.sort_by_exprs([col("Keys").struct_().field_by_name("*")], sort_options)
+        }
+        Sort::Value => {
+            lazy_frame.sort_by_exprs([col("Values").struct_().field_by_name("*")], sort_options)
+        }
     };
+    // lazy_frame = lazy_frame.with_columns([col("Species").list().eval(
+    //     col("").sort_by(
+    //         [col("").struct_().field_by_name("FA").fa().ecn()],
+    //         Default::default(),
+    //     ),
+    //     true,
+    // )]);
     lazy_frame
 }
 
