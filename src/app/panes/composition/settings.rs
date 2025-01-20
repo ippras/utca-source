@@ -393,10 +393,10 @@ impl Default for Settings {
 
 impl Hash for Settings {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.percent.hash(state);
-        self.precision.hash(state);
-        self.resizable.hash(state);
-        self.sticky_columns.hash(state);
+        // self.percent.hash(state);
+        // self.precision.hash(state);
+        // self.resizable.hash(state);
+        // self.sticky_columns.hash(state);
         self.adduct.ord().hash(state);
         self.method.hash(state);
         self.groups.hash(state);

@@ -7,7 +7,13 @@ use crate::{
     },
     utils::polars::{DataFrameExt as _, ExprExt as _},
 };
-use egui::util::cache::{ComputerMut, FrameCache};
+use egui::{
+    emath::Float as _,
+    util::{
+        cache::{ComputerMut, FrameCache},
+        hash,
+    },
+};
 use lipid::{
     prelude::*,
     triacylglycerol::polars::expr::{ExprExt as _, mass::Mass as _},
@@ -134,8 +140,11 @@ impl Computer {
             None => {
                 let compute = |frame: &MetaDataFrame| -> PolarsResult<LazyFrame> {
                     Ok(compute(frame.data.clone().lazy(), key.settings)?.select([
-                        col("Keys").struct_().field_by_name("*"),
-                        as_struct(vec![col("Values"), col("Species")]).alias(frame.meta.title()),
+                        col("Keys")
+                            .apply(hash_column, GetOutput::from_type(DataType::UInt64))
+                            .alias("Hash"),
+                        col("Keys"),
+                        as_struct(vec![col("Values")]).alias(frame.meta.title()),
                     ]))
                 };
                 let frame = &key.frames[0];
@@ -145,18 +154,15 @@ impl Computer {
                 );
                 let mut lazy_frame = compute(frame)?;
                 println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
-                let mut exprs = Vec::new();
-                for index in 0..key.settings.groups.len() {
-                    exprs.push(col(format!("Composition{index}")));
-                }
                 for frame in &key.frames[1..] {
                     lazy_frame = lazy_frame.join(
                         compute(frame)?,
-                        &exprs,
-                        &exprs,
+                        [col("Hash"), col("Keys")],
+                        [col("Hash"), col("Keys")],
                         JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
                     );
                 }
+                lazy_frame = lazy_frame.drop([col("Hash")]);
                 println!("lazy_frame g2: {}", lazy_frame.clone().collect().unwrap());
                 unimplemented!()
             }
@@ -287,13 +293,39 @@ pub(crate) struct Key<'a> {
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frames.hash(state);
-        self.settings.hash(state);
         self.settings.index.hash(state);
+        // self.settings.percent.hash(state);
+        // self.settings.precision.hash(state);
+        // self.settings.resizable.hash(state);
+        // self.settings.sticky_columns.hash(state);
+        self.settings.adduct.ord().hash(state);
+        self.settings.method.hash(state);
+        self.settings.groups.hash(state);
+        self.settings.show.hash(state);
+        self.settings.sort.hash(state);
+        self.settings.order.hash(state);
+        self.settings.join.hash(state);
+        self.settings.ddof.hash(state);
     }
 }
 
 /// Composition value
 type Value = DataFrame;
+
+fn hash_column(column: Column) -> PolarsResult<Option<Column>> {
+    let Some(series) = column.as_series() else {
+        return Ok(None);
+    };
+    Ok(Some(hash_series(series)?.into_column()))
+}
+
+fn hash_series(series: &Series) -> PolarsResult<Series> {
+    Ok(series
+        .iter()
+        .map(|value| Ok(Some(hash(value))))
+        .collect::<PolarsResult<UInt64Chunked>>()?
+        .into_series())
+}
 
 fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
     lazy_frame = lazy_frame.select([
