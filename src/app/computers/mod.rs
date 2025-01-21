@@ -5,5 +5,3 @@ pub(super) use self::{
 
 pub(super) mod calculation;
 pub(super) mod composition;
-
-pub(crate) mod compositions;

@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 pub use app::App;
 
 mod app;

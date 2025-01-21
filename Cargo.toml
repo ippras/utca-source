@@ -1,6 +1,6 @@
 [package]
 name = "utca"
-version = "0.42.0"
+version = "0.42.1"
 edition = "2024"
 
 [dependencies]
@@ -29,11 +29,11 @@ egui_tiles_ext = { git = "https://github.com/kgv/egui_tiles_ext" }
 ehttp = { version = "0.5.0", features = ["json", "native-async"] }
 fluent = "0.16.1"
 fluent_content = "0.0.5"
-indexmap = { version = "2.7.0", features = ["serde"] }
+indexmap = { version = "2.7.1", features = ["serde"] }
 intl-memoizer = "0.5.2"
 itertools = "0.14.0"
 lipid = { git = "https://github.com/ippras/lipid" }
-log = "0.4.22"
+log = "0.4.25"
 maplit = "1.0.2"
 metadata = { git = "https://github.com/ippras/metadata" }
 molecule = { git = "https://github.com/ippras/molecule" }
@@ -41,6 +41,7 @@ num = "0.4.3"
 polars = { version = "0.45.1", default-features = false, features = [
     "concat_str",
     "cross_join",
+    "dtype-array",  # TODO
     "dtype-i8",
     "dtype-struct",
     "dtype-u8",
@@ -60,7 +61,6 @@ polars = { version = "0.45.1", default-features = false, features = [
     # "polars-io",
     # "temporal",
     # "fmt_no_tty",
-    # "dtype-array",
     # "abs",
     # "array_to_struct",
     # "cum_agg",
@@ -72,7 +72,7 @@ polars = { version = "0.45.1", default-features = false, features = [
     # "semi_anti_join",
 ] }
 radix_trie = "0.2.1"
-semver = { version = "1.0.24", features = ["serde"] }
+semver = { version = "1.0.25", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive", "std"] }
 thiserror = "2.0.11"
 tracing = "0.1.41"

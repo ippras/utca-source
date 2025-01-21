@@ -1,6 +1,7 @@
 use self::{
-    settings::{Confirmable, Settings},
-    state::State,
+    plot::PlotView,
+    settings::Settings,
+    state::{State, View},
     table::TableView,
 };
 use super::PaneDelegate;
@@ -15,7 +16,6 @@ use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHART_BAR, CHECK, GEAR, INTERSECT_THREE, LIST,
 };
 use metadata::MetaDataFrame;
-use plot::PlotView;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -125,11 +125,10 @@ impl Pane {
                     settings: &self.settings,
                 })
         });
-        // if self.plot {
-        //     PlotView::new(&self.target).ui(ui);
-        // } else {
-        TableView::new(&self.target, &self.settings, &mut self.state).show(ui);
-        // }
+        match self.state.view {
+            View::Plot => TableView::new(&self.target, &self.settings, &mut self.state).show(ui),
+            View::Table => TableView::new(&self.target, &self.settings, &mut self.state).show(ui),
+        }
     }
 
     fn windows(&mut self, ui: &mut Ui) {

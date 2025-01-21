@@ -161,7 +161,7 @@ impl Settings {
 
             if self.index.is_none() {
                 ui.separator();
-                ui.labeled_separator("Mean and standard deviations");
+                ui.labeled_separator(RichText::new(localize!("statistic")).heading());
                 ui.end_row();
 
                 // ui.label(localize!("merge"));

@@ -2,7 +2,9 @@ use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
     localize,
-    special::composition::{Composition, MC, NC, PSC, PTC, PUC, SC, SSC, STC, SUC, TC, UC},
+    special::composition::{
+        Composition, MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC,
+    },
 };
 use egui::{
     ComboBox, DragValue, Grid, Id, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
@@ -24,6 +26,7 @@ pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
+    pub(crate) round_mass: u32,
     pub(crate) sticky_columns: usize,
 
     pub(crate) confirmed: Confirmable,
@@ -37,6 +40,7 @@ impl Settings {
             percent: true,
             precision: 1,
             resizable: false,
+            round_mass: 1,
             sticky_columns: 0,
 
             confirmed: Confirmable::new(),
@@ -59,6 +63,11 @@ impl Settings {
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             ui.end_row();
 
+            // Round mass
+            ui.label(localize!("round-mass"));
+            ui.add(Slider::new(&mut self.round_mass, 0..=MAX_PRECISION as _));
+            ui.end_row();
+
             // Percent
             ui.label(localize!("percent"));
             ui.checkbox(&mut self.percent, "");
@@ -66,79 +75,6 @@ impl Settings {
 
             ui.separator();
             ui.separator();
-            ui.end_row();
-
-            // Method
-            ui.label(localize!("method"));
-            if ui.input_mut(|input| {
-                input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
-            }) {
-                self.unconfirmed.method = Method::Gunstone;
-            }
-            if ui.input_mut(|input| {
-                input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::W))
-            }) {
-                self.unconfirmed.method = Method::VanderWal;
-            }
-            ComboBox::from_id_salt("method")
-                .selected_text(self.unconfirmed.method.text())
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut self.unconfirmed.method,
-                        Method::Gunstone,
-                        Method::Gunstone.text(),
-                    )
-                    .on_hover_text(Method::Gunstone.hover_text());
-                    ui.selectable_value(
-                        &mut self.unconfirmed.method,
-                        Method::VanderWal,
-                        Method::VanderWal.text(),
-                    )
-                    .on_hover_text(Method::VanderWal.hover_text());
-                })
-                .response
-                .on_hover_text(self.unconfirmed.method.hover_text());
-            ui.end_row();
-
-            ui.label(localize!("adduct"));
-            ui.horizontal(|ui| {
-                let adduct = &mut self.unconfirmed.adduct;
-                ui.add(
-                    DragValue::new(adduct)
-                        .range(0.0..=f64::MAX)
-                        .speed(1.0 / 10f64.powi(self.precision as _)),
-                )
-                .on_hover_text(format!("{adduct}"));
-                ComboBox::from_id_salt(ui.next_auto_id())
-                    .selected_text(match *adduct {
-                        H => "H",
-                        NH4 => "NH4",
-                        NA => "Na",
-                        LI => "Li",
-                        _ => "",
-                    })
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(adduct, 0.0, "None");
-                        ui.selectable_value(adduct, H, "H");
-                        ui.selectable_value(adduct, NH4, "NH4");
-                        ui.selectable_value(adduct, NA, "Na");
-                        ui.selectable_value(adduct, LI, "Li");
-                    });
-            });
-            ui.end_row();
-
-            // View
-            ui.separator();
-            ui.labeled_separator(RichText::new(localize!("view")).heading());
-            ui.end_row();
-
-            ui.label(localize!("nulls")).on_hover_text("Show nulls");
-            ui.checkbox(&mut self.unconfirmed.show_nulls, "");
-            ui.end_row();
-
-            ui.label(localize!("filtered"))
-                .on_hover_text("Show filtered");
-            ui.checkbox(&mut self.unconfirmed.show_filtered, "");
             ui.end_row();
 
             // Compose
@@ -159,9 +95,17 @@ impl Settings {
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut group.composition, NC, NC.text())
                                 .on_hover_text(NC.hover_text());
+                            ui.selectable_value(&mut group.composition, PNC, PNC.text())
+                                .on_hover_text(PNC.hover_text());
+                            ui.selectable_value(&mut group.composition, SNC, SNC.text())
+                                .on_hover_text(SNC.hover_text());
                             ui.separator();
                             ui.selectable_value(&mut group.composition, MC, MC.text())
                                 .on_hover_text(MC.hover_text());
+                            ui.selectable_value(&mut group.composition, PMC, PMC.text())
+                                .on_hover_text(PMC.hover_text());
+                            ui.selectable_value(&mut group.composition, SMC, SMC.text())
+                                .on_hover_text(SMC.hover_text());
                             ui.separator();
                             ui.selectable_value(&mut group.composition, UC, UC.text())
                                 .on_hover_text(UC.hover_text());
@@ -193,16 +137,6 @@ impl Settings {
                         ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
                         FUNNEL_X
                     };
-                    // ui.interact(
-                    //     egui::Rect::EVERYTHING,
-                    //     egui::Id::new("Right click menu"),
-                    //     egui::Sense::hover(),
-                    // ).context_menu_opened();
-                    // .context_menu(|ui|
-                    //     {
-                    //                                 if ui.button(format!("test")).clicked() {
-                    //                                 }
-                    //     }
                     ui.menu_button(title, |ui| {
                         ui.label(format!(
                             "{} {}",
@@ -283,9 +217,76 @@ impl Settings {
                 index += 1;
                 keep
             });
-            // if self.groups.is_empty() {
-            //     self.groups.push_back(Group::new());
-            // }
+
+            // Method
+            ui.label(localize!("method"));
+            if ui.input_mut(|input| {
+                input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
+            }) {
+                self.unconfirmed.method = Method::Gunstone;
+            }
+            if ui.input_mut(|input| {
+                input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::W))
+            }) {
+                self.unconfirmed.method = Method::VanderWal;
+            }
+            ComboBox::from_id_salt("method")
+                .selected_text(self.unconfirmed.method.text())
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut self.unconfirmed.method,
+                        Method::Gunstone,
+                        Method::Gunstone.text(),
+                    )
+                    .on_hover_text(Method::Gunstone.hover_text());
+                    ui.selectable_value(
+                        &mut self.unconfirmed.method,
+                        Method::VanderWal,
+                        Method::VanderWal.text(),
+                    )
+                    .on_hover_text(Method::VanderWal.hover_text());
+                })
+                .response
+                .on_hover_text(self.unconfirmed.method.hover_text());
+            ui.end_row();
+
+            // Adduct
+            ui.label(localize!("adduct"));
+            ui.horizontal(|ui| {
+                let adduct = &mut self.unconfirmed.adduct;
+                ui.add(
+                    DragValue::new(adduct)
+                        .range(0.0..=f64::MAX)
+                        .speed(1.0 / 10f64.powi(self.precision as _)),
+                )
+                .on_hover_text(format!("{adduct}"));
+                ComboBox::from_id_salt(ui.next_auto_id())
+                    .selected_text(match *adduct {
+                        H => "H",
+                        NH4 => "NH4",
+                        NA => "Na",
+                        LI => "Li",
+                        _ => "",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(adduct, 0.0, "None");
+                        ui.selectable_value(adduct, H, "H");
+                        ui.selectable_value(adduct, NH4, "NH4");
+                        ui.selectable_value(adduct, NA, "Na");
+                        ui.selectable_value(adduct, LI, "Li");
+                    });
+            });
+            ui.end_row();
+
+            // View
+            ui.separator();
+            ui.labeled_separator(RichText::new(localize!("view")).heading());
+            ui.end_row();
+
+            ui.label(localize!("show-filtered"))
+                .on_hover_text("Show filtered");
+            ui.checkbox(&mut self.unconfirmed.show_filtered, "");
+            ui.end_row();
 
             // // Join
             // ui.label(localize!("join"));
@@ -346,15 +347,17 @@ impl Settings {
                 .on_hover_text(self.unconfirmed.order.hover_text());
             ui.end_row();
 
-            // Statistic
-            ui.separator();
-            ui.labeled_separator(RichText::new(localize!("statistic")).heading());
-            ui.end_row();
+            if self.index.is_none() {
+                // Statistic
+                ui.separator();
+                ui.labeled_separator(RichText::new(localize!("statistic")).heading());
+                ui.end_row();
 
-            // https://numpy.org/devdocs/reference/generated/numpy.std.html
-            ui.label(localize!("ddof"));
-            ui.add(Slider::new(&mut self.unconfirmed.ddof, 0..=2));
-            ui.end_row();
+                // https://numpy.org/devdocs/reference/generated/numpy.std.html
+                ui.label(localize!("ddof"));
+                ui.add(Slider::new(&mut self.unconfirmed.ddof, 0..=2));
+                ui.end_row();
+            }
 
             ui.separator();
             ui.separator();
@@ -372,7 +375,6 @@ pub(crate) struct Confirmable {
     pub(crate) method: Method,
     pub(crate) order: Order,
     pub(crate) show_filtered: bool,
-    pub(crate) show_nulls: bool,
     pub(crate) sort: Sort,
 }
 
@@ -386,7 +388,6 @@ impl Confirmable {
             method: Method::VanderWal,
             order: Order::Descending,
             show_filtered: false,
-            show_nulls: false,
             sort: Sort::Value,
         }
     }
@@ -407,7 +408,6 @@ impl Hash for Confirmable {
         self.method.hash(state);
         self.order.hash(state);
         self.show_filtered.hash(state);
-        self.show_nulls.hash(state);
         self.sort.hash(state);
     }
 }

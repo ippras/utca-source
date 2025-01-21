@@ -4,14 +4,16 @@ use crate::{
     utils::polars::{DataFrameExt as _, ExprExt as _},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use lipid::prelude::*;
+use lipid::{fatty_acid::Kind, prelude::*};
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use std::{
+    collections::VecDeque,
     convert::identity,
     hash::{Hash, Hasher},
     process::exit,
 };
+use tracing::warn;
 
 /// Composition computed
 pub(crate) type Computed = FrameCache<Value, Computer>;
@@ -111,21 +113,25 @@ pub(crate) struct Computer;
 
 impl Computer {
     fn try_compute(&mut self, key: Key) -> PolarsResult<Value> {
-        println!("index: {:?}", key.settings.index);
-        let mut lazy_frame = match key.settings.index {
+        warn!("index: {:?}", key.settings.index);
+        let mut settings = key.settings.clone();
+        if settings.confirmed.groups.is_empty() {
+            settings.confirmed.groups.push_back(Group {
+                composition: SSC,
+                filter: Filter::new(),
+            });
+        }
+        let settings = &settings;
+        let mut lazy_frame = match settings.index {
             Some(index) => {
                 let frame = &key.frames[index];
                 let mut lazy_frame = frame.data.clone().lazy();
-                lazy_frame = compute(lazy_frame, key.settings)?;
-                // Filter
-                lazy_frame = filter(lazy_frame, key.settings);
-                // Sort
-                lazy_frame = sort(lazy_frame, key.settings);
+                lazy_frame = compute(lazy_frame, settings)?;
                 lazy_frame
             }
             None => {
                 let compute = |frame: &MetaDataFrame| -> PolarsResult<LazyFrame> {
-                    Ok(compute(frame.data.clone().lazy(), key.settings)?.select([
+                    Ok(compute(frame.data.clone().lazy(), settings)?.select([
                         col("Keys").hash(),
                         col("Keys"),
                         col("Values").alias(frame.meta.title()),
@@ -141,14 +147,14 @@ impl Computer {
                     );
                 }
                 lazy_frame = lazy_frame.drop([col("Hash")]);
-                lazy_frame = meta(lazy_frame, key.settings)?;
-                // Filter
-                lazy_frame = filter_m(lazy_frame, key.settings);
-                // Sort
-                lazy_frame = sort_m(lazy_frame, key.settings);
+                lazy_frame = meta(lazy_frame, settings)?;
                 lazy_frame
             }
         };
+        // Filter
+        lazy_frame = filter(lazy_frame, settings);
+        // Sort
+        lazy_frame = sort(lazy_frame, settings);
         // Index
         lazy_frame = lazy_frame.with_row_index("Index", None);
         lazy_frame.collect()
@@ -216,55 +222,6 @@ impl Computer {
 impl ComputerMut<Key<'_>, Value> for Computer {
     fn compute(&mut self, key: Key) -> Value {
         self.try_compute(key).unwrap()
-        // match key.settings.method {
-        //     Method::Gunstone => unreachable!(),
-        //     Method::VanderWal => {
-        //         assert!(!key.settings.groups.is_empty());
-        //         // let mut compositions = Vec::new();
-        //         // for index in 0..key.settings.groups.len() {
-        //         //     compositions.push(col(format!("Composition{index}")));
-        //         // }
-        //         // let mut lazy_frame: Option<LazyFrame> = None;
-        //         // for column in &key.data_frame.clone().get_columns()[2..] {
-        //         //     let composition = vander_wal(
-        //         //         key.data_frame.clone().lazy().select([
-        //         //             col("Index"),
-        //         //             col("FA"),
-        //         //             col(column.name().as_str()).alias("Values"),
-        //         //         ]),
-        //         //         key.settings,
-        //         //     )
-        //         //     .unwrap();
-        //         //     let next = composition.select([
-        //         //         col("Compositions").struct_().field_by_names(["*"]),
-        //         //         col("Values").alias(column.name().as_str()),
-        //         //     ]);
-        //         //     lazy_frame = Some(if let Some(current) = lazy_frame {
-        //         //         current.join(
-        //         //             next,
-        //         //             &compositions,
-        //         //             &compositions,
-        //         //             JoinArgs::new(JoinType::Full)
-        //         //                 .with_coalesce(JoinCoalesce::CoalesceColumns),
-        //         //         )
-        //         //     } else {
-        //         //         next
-        //         //     });
-        //         // }
-        //         // let Some(mut lazy_frame) = lazy_frame else {
-        //         //     return DataFrame::empty();
-        //         // };
-        //         // // Meta
-        //         // let mut compositions = lazy_frame.compositions().meta(key.settings).unwrap();
-        //         // // Filter
-        //         // compositions = compositions.filter(key.settings);
-        //         // // Sort
-        //         // compositions = compositions.sort(key.settings);
-        //         // // Restruct
-        //         // lazy_frame = compositions.restruct(key.settings);
-        //         // lazy_frame.collect().unwrap()
-        //     }
-        // }
     }
 }
 
@@ -387,22 +344,37 @@ fn cartesian_product(mut lazy_frame: LazyFrame) -> PolarsResult<LazyFrame> {
 }
 
 fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
-    let mut groups = settings.confirmed.groups.clone();
-    if groups.is_empty() {
-        groups.push_back(Group {
-            composition: SSC,
-            filter: Filter::new(),
-        });
-    }
     // Composition
-    for (index, group) in groups.iter().enumerate() {
+    for (index, group) in settings.confirmed.groups.iter().enumerate() {
         lazy_frame = lazy_frame.with_column(
             match group.composition {
                 MC => col("FattyAcid")
                     .tag()
                     .mass(lit(settings.confirmed.adduct))
-                    .round(1),
-                NC => col("FattyAcid").tag().ecn(),
+                    .alias("MC"),
+                PMC => col("FattyAcid")
+                    .tag()
+                    .positional(
+                        |expr| expr.fa().mass(Kind::Rcooh),
+                        PermutationOptions::default().map(true),
+                    )
+                    .alias("PMC"),
+                SMC => col("FattyAcid")
+                    .tag()
+                    .map(|expr| expr.fa().mass(Kind::Rcooh))
+                    .alias("SMC"),
+                NC => col("FattyAcid").tag().ecn().alias("NC"),
+                PNC => col("FattyAcid")
+                    .tag()
+                    .positional(
+                        |expr| expr.fa().ecn(),
+                        PermutationOptions::default().map(true),
+                    )
+                    .alias("PNC"),
+                SNC => col("FattyAcid")
+                    .tag()
+                    .map(|expr| expr.fa().ecn())
+                    .alias("SNC"),
                 SC => col("Label")
                     .tag()
                     .non_stereospecific(identity, PermutationOptions::default())?
@@ -426,33 +398,41 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
                         PermutationOptions::default().map(true),
                     )
                     .alias("PTC"),
-                STC => col("FattyAcid").tag().map(|expr| expr.fa().is_saturated()),
-                UC => col("FattyAcid").tag().unsaturation(),
-                _ => unimplemented!(),
+                STC => col("FattyAcid")
+                    .tag()
+                    .map(|expr| expr.fa().is_saturated())
+                    .alias("STC"),
+                UC => col("FattyAcid").tag().unsaturation().alias("UC"),
+                PUC => col("FattyAcid")
+                    .tag()
+                    .positional(
+                        |expr| expr.fa().unsaturated().sum(),
+                        PermutationOptions::default().map(true),
+                    )
+                    .alias("PUC"),
+                SUC => col("FattyAcid")
+                    .tag()
+                    .map(|expr| expr.fa().unsaturated().sum())
+                    .alias("SUC"),
             }
             .alias(format!("Key{index}")),
         );
-        println!("lazy_frame g0: {}", lazy_frame.clone().collect().unwrap());
         // Value
         lazy_frame = lazy_frame.with_column(
             sum("Value")
                 .over([as_struct(vec![col(format!("^Key[0-{index}]$"))])])
                 .alias(format!("Value{index}")),
         );
-        println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
     }
     // Group
     lazy_frame = lazy_frame
         .group_by([col(r#"^Key\d$"#), col(r#"^Value\d$"#)])
         .agg([as_struct(vec![col("Label"), col("FattyAcid"), col("Value")]).alias("Species")]);
-    // exprs.push(col("Species"));
-    // println!("lazy_frame x0: {}", lazy_frame.clone().collect().unwrap());
     lazy_frame = lazy_frame.select([
         as_struct(vec![col(r#"^Key\d$"#)]).alias("Keys"),
         concat_list([col(r#"^Value\d$"#)])?.alias("Values"),
         col("Species"),
     ]);
-    // println!("lazy_frame x1: {}", lazy_frame.clone().collect().unwrap());
     Ok(lazy_frame)
 }
 
@@ -487,35 +467,34 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     if !settings.confirmed.show_filtered {
         let mut predicate = lit(true);
         for (index, group) in settings.confirmed.groups.iter().enumerate() {
-            predicate = predicate.and(
-                col("Values")
-                    .list()
-                    .get(lit(index as u32), false)
-                    .gt(lit(group.filter.value)),
-            );
+            let mut expr = col("Values").list().get(lit(index as u32), false);
+            if settings.index.is_none() {
+                expr = expr.struct_().field_by_name("Mean");
+            }
+            predicate = predicate.and(expr.gt(lit(group.filter.value)));
         }
         lazy_frame = lazy_frame.filter(predicate);
     }
     lazy_frame
 }
 
-fn filter_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
-    if !settings.confirmed.show_filtered {
-        let mut predicate = lit(true);
-        for (index, group) in settings.confirmed.groups.iter().enumerate() {
-            predicate = predicate.and(
-                col("Values")
-                    .list()
-                    .get(lit(index as u32), false)
-                    .struct_()
-                    .field_by_name("Mean")
-                    .gt(lit(group.filter.value)),
-            );
-        }
-        lazy_frame = lazy_frame.filter(predicate);
-    }
-    lazy_frame
-}
+// fn filter_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
+//     if !settings.confirmed.show_filtered {
+//         let mut predicate = lit(true);
+//         for (index, group) in settings.confirmed.groups.iter().enumerate() {
+//             predicate = predicate.and(
+//                 col("Values")
+//                     .list()
+//                     .get(lit(index as u32), false)
+//                     .struct_()
+//                     .field_by_name("Mean")
+//                     .gt(lit(group.filter.value)),
+//             );
+//         }
+//         lazy_frame = lazy_frame.filter(predicate);
+//     }
+//     lazy_frame
+// }
 
 fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     let mut sort_options = SortMultipleOptions::default();
@@ -524,11 +503,15 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
             .with_order_descending(true)
             .with_nulls_last(true);
     }
+    let mut expr = col("Values");
+    if settings.index.is_none() {
+        expr = expr
+            .list()
+            .eval(col("").struct_().field_by_name("Mean"), true);
+    }
     lazy_frame = match settings.confirmed.sort {
-        Sort::Key => {
-            lazy_frame.sort_by_exprs([col("Keys").struct_().field_by_name("*")], sort_options)
-        }
-        Sort::Value => lazy_frame.sort_by_exprs([col("Values")], sort_options),
+        Sort::Key => lazy_frame.sort_by_exprs([col("Keys")], sort_options),
+        Sort::Value => lazy_frame.sort_by_exprs([expr], sort_options),
     };
     // TODO sort species
     // lazy_frame = lazy_frame.with_columns([col("Species").list().eval(
@@ -541,24 +524,25 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     lazy_frame
 }
 
-fn sort_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
-    let mut sort_options = SortMultipleOptions::default();
-    if let Order::Descending = settings.confirmed.order {
-        sort_options = sort_options
-            .with_order_descending(true)
-            .with_nulls_last(true);
-    }
-    lazy_frame = match settings.confirmed.sort {
-        Sort::Key => lazy_frame.sort_by_exprs([col("Keys")], sort_options),
-        Sort::Value => lazy_frame.sort_by_exprs(
-            [col("Values")
-                .list()
-                .eval(col("").struct_().field_by_name("Mean"), true)],
-            sort_options,
-        ),
-    };
-    lazy_frame
-}
+// fn sort_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
+//     let mut sort_options = SortMultipleOptions::default();
+//     if let Order::Descending = settings.confirmed.order {
+//         sort_options = sort_options
+//             .with_order_descending(true)
+//             .with_nulls_last(true);
+//     }
+//     let mut expr = col("Values");
+//     if settings.index.is_none() {
+//         expr = expr
+//             .list()
+//             .eval(col("").struct_().field_by_name("Mean"), true);
+//     }
+//     lazy_frame = match settings.confirmed.sort {
+//         Sort::Key => lazy_frame.sort_by_exprs([col("Keys")], sort_options),
+//         Sort::Value => lazy_frame.sort_by_exprs([expr], sort_options),
+//     };
+//     lazy_frame
+// }
 
 // /// Extension methods for [`DataFrame`]
 // trait DataFrameExt {
