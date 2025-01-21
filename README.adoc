@@ -15,29 +15,12 @@ Ultimate Triacylglycerol Calculation Application
 
 == See Also
 
+* https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
+* https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
+
 == Dedication
 
 == TODO
-
-Листы отдельно, последний отображаемый элемент - отдельно
-Иначе фильтр будет применяться к листам, и будет несоответствие
-
-== TEMP
-
-SafeNet, Inc.
-SafeNet USB SuperPro/UltraPro
-https://vipdongle.com/mp/sentinel-dongle/
-https://exetools.forumotion.com/t8-emulate-superpro-dongle-in-64-bit-windows-using-multikey
-https://dongla.net/sentinel.html
-https://xakep.ru/2007/02/07/36659/
-
-.Удалить пробелы межру виджетами
-`ui.spacing_mut().item_spacing.x = 0.0;`
-
-`$env:RUST_LOG="ms_viewer=trace"`
-
-link:https://www.online-convert.com/[SVG to PNG]
-
 
 == Run
 
@@ -64,65 +47,3 @@ integrity:
 * `Дополнительные`
 * `Изображения и другие файлы, сохраненные в кеше`
 * `Удалить данные`
-
-== Doc
-
-[Mass fraction](https://en.wikipedia.org/wiki/Mole_fraction#Mass_fraction)
-[Mole fraction](https://en.wikipedia.org/wiki/Mole_fraction)
-
-Метод простой нормировки. Для его использования необходимо, чтобы на хроматограмме были зарегистрированы все компоненты, входящие в состав анализируемой смеси. Сумму площадей всех пиков принимают за 1. Тогда отношение площади одного пика к сумме площадей, будет характеризовать массовую долю компонента в смеси.
-
-Мольную долю компонента в смеси мо.
-
-== See also
-
-* https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
-* https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
-* https://tableconvert.com[tableconvert.com, title=Table converter]
-* https://github.com/hkBst/tic-tac-toe-seed/blob/main/.github/workflows/deploy.yml[workflows example]
-
-$env:RUST_LOG="utca=trace"
-$env:RUST_BACKTRACE=1
-
-// https://raw.githubusercontent.com/ippras/utca/gh-pages/configs/lunaria_rediviva/1.1.utca.toml
-
-== T
-
-Group (Группировка) - это объединение видов триглицеридов по определенному признаку.
-Composition (Композиция) - это идентификатор объединения видов триглицеридов по определенному признаку.
-
-Предметная модель оперирует следующими признаками (чертами) ЖК:
-- ECN
-- молярная масса
-- тип
-- вид
-
-// Вид - это конкретный экземпляр ЖК. Тип - это признак насыщенности для ЖК.
-
-Возможность рекурсивной композиции видов/типов.
-Для каждой итерация рекурсивной группировки может быть задана стереоспецифичность:
-- стерео-неспецифичная - SN1, SN2, SN3 положения эквивалентны
-- позиционно-специфичная - SN1, SN3 положения эквивалентны
-- стерео-специфичная - все SN положения неэквивалентны
-
-Таким образом получаем следующий возможный набор композиционных групп:
-- "NC": Equivalent carbon number composition,
-- "PNC": Positional equivalent carbon number composition,
-- "SNC": Stereo equivalent carbon number composition,
-- "MC": Mass composition,
-- "PMC": Positional mass composition,
-- "SMC": Stereo mass composition,
-- "TC": Type composition,
-- "PTC": Positional type composition,
-- "STC": Stereo type composition,
-- "SC": Species composition,
-- "PSC": Positional species composition,
-- "SSC": Stereo species composition.
-
-Пример:
-PNC -> SMC -> SC
-- Сначала все триглицириды будут распределены в группы, внутри которых позиционно-специфичная ECN триглицирида эквивалента.
-- Затем, все триглицириды внутри каждой из групп предыдущего этапа будут распределены в подгруппы, внутри которых стерео-специфичная масса триглицирида эквивалента.
-- Наконец, все триглицириды внутри каждой из групп предыдущего этапа будут распределены в подгруппы, внутри которых будут находиться только стерео-неспецифичные виды триглицирида эквивалента.
-
-Группировка в панели сравнения может 
