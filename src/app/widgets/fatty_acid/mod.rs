@@ -67,7 +67,9 @@ impl FattyAcidWidget<'_> {
                         Grid::new(ui.next_auto_id()).show(ui, |ui| {
                             // Carbons
                             ui.label("Carbons");
-                            ui.add(DragValue::new(&mut fatty_acid.carbons));
+                            if ui.add(DragValue::new(&mut fatty_acid.carbons)).changed() {
+                                inner = Ok(Some(fatty_acid.clone()));
+                            }
                             ui.end_row();
 
                             // Unsaturated

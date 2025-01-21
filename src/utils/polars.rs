@@ -111,6 +111,8 @@ pub trait ExprExt {
     fn destruct(self, names: impl IntoIterator<Item = impl AsRef<str>>) -> Expr;
 
     fn suffix(self, suffix: &str) -> Expr;
+
+    fn hash(self) -> Expr;
 }
 
 impl ExprExt for Expr {
@@ -147,6 +149,11 @@ impl ExprExt for Expr {
 
     fn suffix(self, suffix: &str) -> Expr {
         self.name().suffix(suffix)
+    }
+
+    fn hash(self) -> Expr {
+        self.apply(column(hash), GetOutput::from_type(DataType::UInt64))
+            .alias("Hash")
     }
 }
 
@@ -198,5 +205,37 @@ impl StructChunkedExt for StructChunked {
 
     fn try_field(&self, name: &str) -> PolarsResult<Series> {
         self.field_by_name(name)
+    }
+}
+
+pub fn column(
+    function: impl Fn(&Series) -> PolarsResult<Series>,
+) -> impl Fn(Column) -> PolarsResult<Option<Column>> {
+    move |column| {
+        let Some(series) = column.as_series() else {
+            return Ok(None);
+        };
+        Ok(Some(function(series)?.into_column()))
+    }
+}
+
+pub fn hash(series: &Series) -> PolarsResult<Series> {
+    use egui::util::hash;
+
+    Ok(series
+        .iter()
+        .map(|value| Ok(Some(hash(value))))
+        .collect::<PolarsResult<UInt64Chunked>>()?
+        .into_series())
+}
+
+/// Extension methods for [`LazyFrame`]
+pub trait LazyFrameExt {
+    fn with_column_hash(self, expr: Expr) -> Self;
+}
+
+impl LazyFrameExt for LazyFrame {
+    fn with_column_hash(self, expr: Expr) -> Self {
+        self.select([expr.hash(), all()])
     }
 }

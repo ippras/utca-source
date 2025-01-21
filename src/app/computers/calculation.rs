@@ -3,19 +3,13 @@ use crate::{
         panes::calculation::settings::{Fraction, From, Settings},
         presets::CHRISTIE,
     },
-    utils::polars::{ExprExt as _, SchemaExt},
+    utils::polars::{ExprExt as _, LazyFrameExt as _},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{
     fatty_acid::{
         Kind,
-        polars::{
-            ExprExt as _, SCHEMA as FATTY_ACID_SCHEMA,
-            expr::{
-                factor::{Selectivity as _, enrichment},
-                mass::Mass as _,
-            },
-        },
+        polars::expr::factor::{Selectivity as _, enrichment},
     },
     prelude::*,
 };
@@ -42,8 +36,9 @@ impl Computer {
             None => {
                 let compute = |frame: &MetaDataFrame| -> PolarsResult<LazyFrame> {
                     Ok(compute(frame.data.clone().lazy(), key.settings)?.select([
+                        as_struct(vec![col("Label"), col("FattyAcid")]).hash(),
                         col("Label"),
-                        col("FattyAcid").struct_().field_by_name("*"),
+                        col("FattyAcid"),
                         as_struct(vec![
                             col("Experimental"),
                             col("Theoretical"),
@@ -53,21 +48,19 @@ impl Computer {
                         .alias(frame.meta.title()),
                     ]))
                 };
-                let frame = &key.frames[0];
-                let mut lazy_frame = compute(frame)?;
+                let mut lazy_frame = compute(&key.frames[0])?;
                 for frame in &key.frames[1..] {
                     lazy_frame = lazy_frame.join(
                         compute(frame)?,
-                        [col("Label"), col("Carbons"), col("Unsaturated")],
-                        [col("Label"), col("Carbons"), col("Unsaturated")],
+                        [col("Hash"), col("Label"), col("FattyAcid")],
+                        [col("Hash"), col("Label"), col("FattyAcid")],
                         JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
                     );
                 }
-                lazy_frame = lazy_frame
-                    .with_columns([as_struct(FATTY_ACID_SCHEMA.names()).alias("FattyAcid")])
-                    .drop(FATTY_ACID_SCHEMA.names())
-                    .with_row_index("Index", None);
+                lazy_frame = lazy_frame.drop(["Hash"]);
                 lazy_frame = means(lazy_frame, key.settings)?;
+                // Index
+                lazy_frame = lazy_frame.with_row_index("Index", None);
                 lazy_frame.collect()
             }
         }
@@ -90,7 +83,19 @@ pub(crate) struct Key<'a> {
 impl Hash for Key<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.frames.hash(state);
-        self.settings.hash(state);
+        self.settings.index.hash(state);
+        // self.settings.percent.hash(state);
+        // self.settings.precision.hash(state);
+        // self.settings.resizable.hash(state);
+        // self.settings.sticky_columns.hash(state);
+        // self.settings.truncate.hash(state);
+        self.settings.fraction.hash(state);
+        self.settings.from.hash(state);
+        self.settings.normalize.hash(state);
+        self.settings.unsigned.hash(state);
+        self.settings.christie.hash(state);
+        self.settings.factors.hash(state);
+        self.settings.ddof.hash(state);
     }
 }
 
@@ -144,26 +149,23 @@ fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
 
 fn christie(lazy_frame: LazyFrame) -> LazyFrame {
     lazy_frame
-        .unnest(["FattyAcid"])
+        .with_column_hash(col("FattyAcid"))
         .join(
             CHRISTIE.data.clone().lazy().select([
-                col("FattyAcid").struct_().field_by_name("*"),
+                col("FattyAcid").hash(),
+                col("FattyAcid"),
                 col("Christie"),
             ]),
-            FATTY_ACID_SCHEMA.names(),
-            FATTY_ACID_SCHEMA.names(),
+            [col("Hash"), col("FattyAcid")],
+            [col("Hash"), col("FattyAcid")],
             JoinArgs::new(JoinType::Left),
         )
-        .with_columns([
-            as_struct(FATTY_ACID_SCHEMA.names()).alias("FattyAcid"),
-            // col("Christie").fill_null(lit(1)),
-        ])
-        .drop(FATTY_ACID_SCHEMA.names())
+        // col("Christie").fill_null(lit(1)),
+        .drop(["Hash"])
 }
 
 fn means(lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
     Ok(lazy_frame.select([
-        col("Index"),
         col("Label"),
         col("FattyAcid"),
         as_struct(vec![
@@ -190,16 +192,8 @@ fn means(lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> 
         ])
         .alias("Theoretical"),
         as_struct(vec![
-            as_struct(vec![mean(
-                &["Factors", "Enrichment", "Monoacylglycerol2"],
-                settings.ddof,
-            )?])
-            .alias("Enrichment"),
-            as_struct(vec![mean(
-                &["Factors", "Selectivity", "Monoacylglycerol2"],
-                settings.ddof,
-            )?])
-            .alias("Selectivity"),
+            mean(&["Factors", "Enrichment"], settings.ddof)?,
+            mean(&["Factors", "Selectivity"], settings.ddof)?,
         ])
         .alias("Factors"),
     ]))
@@ -207,18 +201,14 @@ fn means(lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> 
 
 fn mean(names: &[&str], ddof: u8) -> PolarsResult<Expr> {
     Ok(as_struct(vec![
-        concat_list([all()
-            .exclude(["Index", "Label", "FattyAcid"])
-            .destruct(names)])?
-        .list()
-        .mean()
-        .alias("Mean"),
-        concat_list([all()
-            .exclude(["Index", "Label", "FattyAcid"])
-            .destruct(names)])?
-        .list()
-        .std(ddof)
-        .alias("StandardDeviations"),
+        concat_list([all().exclude(["Label", "FattyAcid"]).destruct(names)])?
+            .list()
+            .mean()
+            .alias("Mean"),
+        concat_list([all().exclude(["Label", "FattyAcid"]).destruct(names)])?
+            .list()
+            .std(ddof)
+            .alias("StandardDeviations"),
     ])
     .alias(names[names.len() - 1]))
 }
@@ -239,6 +229,8 @@ trait Mag2 {
 #[derive(Clone, Debug)]
 struct Experimental(Expr);
 
+// TODO
+// if Fraction then: UserWarning: groups may be out of bounds; more groups than elements in a series is only possible in dynamic group_by
 impl Experimental {
     fn compute(self, fatty_acid: Expr, settings: &Settings) -> Expr {
         // // col(name) / (col(name) * col("FA").fa().mass() / lit(10)).sum()
@@ -349,14 +341,11 @@ struct Factors(Expr);
 impl Factors {
     fn compute(self, fatty_acid: Expr) -> Expr {
         as_struct(vec![
-            as_struct(vec![enrichment(self.clone().mag2(), self.clone().tag())])
-                .alias("Enrichment"),
-            as_struct(vec![
-                fatty_acid
-                    .fatty_acid()
-                    .selectivity(self.clone().mag2(), self.tag()),
-            ])
-            .alias("Selectivity"),
+            enrichment(self.clone().mag2(), self.clone().tag()).alias("Enrichment"),
+            fatty_acid
+                .fatty_acid()
+                .selectivity(self.clone().mag2(), self.tag())
+                .alias("Selectivity"),
         ])
         .alias("Factors")
     }

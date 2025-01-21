@@ -9,7 +9,6 @@ use crate::{
         widgets::{FattyAcidWidget, FloatWidget},
     },
     localize,
-    utils::polars::DataFrameExt as _,
 };
 use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
 use egui_table::{
@@ -194,12 +193,12 @@ impl TableView<'_> {
     ) -> PolarsResult<()> {
         match (row, column) {
             (row, id::INDEX) => {
-                let indices = self.data_frame.u32("Index");
+                let indices = self.data_frame["Index"].u32()?;
                 let index = indices.get(row).unwrap();
                 ui.label(index.to_string());
             }
             (row, id::LABEL) => {
-                let labels = self.data_frame.str("Label");
+                let labels = self.data_frame["Label"].str()?;
                 let label = labels.get(row).unwrap();
                 ui.label(label);
             }
@@ -305,9 +304,7 @@ impl TableView<'_> {
                     ui,
                     self.data_frame["Factors"]
                         .struct_()?
-                        .field_by_name("Enrichment")?
-                        .struct_()?
-                        .field_by_name("Monoacylglycerol2")?,
+                        .field_by_name("Enrichment")?,
                     Some(row),
                     false,
                     false,
@@ -318,9 +315,7 @@ impl TableView<'_> {
                     ui,
                     self.data_frame["Factors"]
                         .struct_()?
-                        .field_by_name("Selectivity")?
-                        .struct_()?
-                        .field_by_name("Monoacylglycerol2")?,
+                        .field_by_name("Selectivity")?,
                     Some(row),
                     false,
                     false,

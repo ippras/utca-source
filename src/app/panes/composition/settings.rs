@@ -17,71 +17,40 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-/// Composition settings bundle
-#[derive(Default, Deserialize, Serialize)]
-pub(crate) struct Bundle {
-    pub(crate) confirmed: Settings,
-    pub(crate) unconfirmed: Settings,
-}
-
-impl Bundle {
-    pub(crate) fn new(index: Option<usize>) -> Self {
-        Self {
-            confirmed: Settings::new(index),
-            unconfirmed: Settings::new(index),
-        }
-    }
-}
-
 /// Composition settings
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub(crate) struct Settings {
     pub(crate) index: Option<usize>,
-
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
     pub(crate) sticky_columns: usize,
 
-    pub(crate) adduct: f64,
-    pub(crate) method: Method,
-    pub(crate) groups: VecDeque<Group>,
-    pub(crate) show: Show,
-    pub(crate) sort: Sort,
-    pub(crate) order: Order,
-    pub(crate) join: Join,
-
-    pub(crate) ddof: u8,
+    pub(crate) confirmed: Confirmable,
+    pub(super) unconfirmed: Confirmable,
 }
 
 impl Settings {
-    pub(crate) const fn new(index: Option<usize>) -> Self {
+    pub(crate) fn new(index: Option<usize>) -> Self {
         Self {
-            index,
+            index: index,
             percent: true,
             precision: 1,
             resizable: false,
             sticky_columns: 0,
-            adduct: 0.0,
-            method: Method::VanderWal,
-            groups: VecDeque::new(),
-            show: Show::new(),
-            sort: Sort::Value,
-            order: Order::Descending,
-            join: Join::Left,
-            ddof: 1,
+
+            confirmed: Confirmable::new(),
+            unconfirmed: Confirmable::new(),
         }
     }
-}
 
-impl Settings {
     pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
         Grid::new("composition").show(ui, |ui| {
             // Sticky
             ui.label(localize!("sticky"));
             ui.add(Slider::new(
                 &mut self.sticky_columns,
-                0..=self.groups.len() * 2 + 1,
+                0..=self.unconfirmed.groups.len() * 2 + 1,
             ));
             ui.end_row();
 
@@ -104,36 +73,36 @@ impl Settings {
             if ui.input_mut(|input| {
                 input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
             }) {
-                self.method = Method::Gunstone;
+                self.unconfirmed.method = Method::Gunstone;
             }
             if ui.input_mut(|input| {
                 input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::W))
             }) {
-                self.method = Method::VanderWal;
+                self.unconfirmed.method = Method::VanderWal;
             }
             ComboBox::from_id_salt("method")
-                .selected_text(self.method.text())
+                .selected_text(self.unconfirmed.method.text())
                 .show_ui(ui, |ui| {
                     ui.selectable_value(
-                        &mut self.method,
+                        &mut self.unconfirmed.method,
                         Method::Gunstone,
                         Method::Gunstone.text(),
                     )
                     .on_hover_text(Method::Gunstone.hover_text());
                     ui.selectable_value(
-                        &mut self.method,
+                        &mut self.unconfirmed.method,
                         Method::VanderWal,
                         Method::VanderWal.text(),
                     )
                     .on_hover_text(Method::VanderWal.hover_text());
                 })
                 .response
-                .on_hover_text(self.method.hover_text());
+                .on_hover_text(self.unconfirmed.method.hover_text());
             ui.end_row();
 
             ui.label(localize!("adduct"));
             ui.horizontal(|ui| {
-                let adduct = &mut self.adduct;
+                let adduct = &mut self.unconfirmed.adduct;
                 ui.add(
                     DragValue::new(adduct)
                         .range(0.0..=f64::MAX)
@@ -164,22 +133,22 @@ impl Settings {
             ui.end_row();
 
             ui.label(localize!("nulls")).on_hover_text("Show nulls");
-            ui.checkbox(&mut self.show.nulls, "");
+            ui.checkbox(&mut self.unconfirmed.show_nulls, "");
             ui.end_row();
 
             ui.label(localize!("filtered"))
                 .on_hover_text("Show filtered");
-            ui.checkbox(&mut self.show.filtered, "");
+            ui.checkbox(&mut self.unconfirmed.show_filtered, "");
             ui.end_row();
 
             // Compose
             ui.label(localize!("compose"));
             if ui.button(PLUS).clicked() {
-                self.groups.push_front(Group::new());
+                self.unconfirmed.groups.push_front(Group::new());
             }
             ui.end_row();
             let mut index = 0;
-            self.groups.retain_mut(|group| {
+            self.unconfirmed.groups.retain_mut(|group| {
                 let mut keep = true;
                 ui.label("");
                 ui.horizontal(|ui| {
@@ -242,7 +211,8 @@ impl Settings {
                         ));
                         // Key
                         let mut is_open = false;
-                        let t = AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
+                        let hover =
+                            AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
                         ui.horizontal(|ui| {
                             let id_salt = "FattyAcidsFilter";
                             ComboBox::from_id_salt(id_salt)
@@ -256,6 +226,10 @@ impl Settings {
                                         .struct_()
                                         .unwrap()
                                         .field_by_name("Key")
+                                        .unwrap()
+                                        .unique()
+                                        .unwrap()
+                                        .sort(Default::default())
                                         .unwrap();
                                     // println!("composition: {:?}", key.str_value(0));
                                     for index in 0..key.len() {
@@ -274,7 +248,7 @@ impl Settings {
                                     Ok(())
                                 })
                                 .response
-                                .on_hover_text(t.str_value());
+                                .on_hover_text(hover.str_value());
                             let id = ui.make_persistent_id(Id::new(id_salt));
                             is_open = ComboBox::is_open(ui.ctx(), id);
                             if ui.button(TRASH).clicked() {
@@ -309,9 +283,9 @@ impl Settings {
                 index += 1;
                 keep
             });
-            if self.groups.is_empty() {
-                self.groups.push_back(Group::new());
-            }
+            // if self.groups.is_empty() {
+            //     self.groups.push_back(Group::new());
+            // }
 
             // // Join
             // ui.label(localize!("join"));
@@ -336,32 +310,40 @@ impl Settings {
             // Sort
             ui.label(localize!("sort"));
             ComboBox::from_id_salt("sort")
-                .selected_text(self.sort.text())
+                .selected_text(self.unconfirmed.sort.text())
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.sort, Sort::Key, Sort::Key.text())
+                    ui.selectable_value(&mut self.unconfirmed.sort, Sort::Key, Sort::Key.text())
                         .on_hover_text(Sort::Key.hover_text());
-                    ui.selectable_value(&mut self.sort, Sort::Value, Sort::Value.text())
-                        .on_hover_text(Sort::Value.hover_text());
+                    ui.selectable_value(
+                        &mut self.unconfirmed.sort,
+                        Sort::Value,
+                        Sort::Value.text(),
+                    )
+                    .on_hover_text(Sort::Value.hover_text());
                 })
                 .response
-                .on_hover_text(self.sort.hover_text());
+                .on_hover_text(self.unconfirmed.sort.hover_text());
             ui.end_row();
             // Order
             ui.label(localize!("order"));
             ComboBox::from_id_salt("order")
-                .selected_text(self.order.text())
+                .selected_text(self.unconfirmed.order.text())
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.order, Order::Ascending, Order::Ascending.text())
-                        .on_hover_text(Order::Ascending.hover_text());
                     ui.selectable_value(
-                        &mut self.order,
+                        &mut self.unconfirmed.order,
+                        Order::Ascending,
+                        Order::Ascending.text(),
+                    )
+                    .on_hover_text(Order::Ascending.hover_text());
+                    ui.selectable_value(
+                        &mut self.unconfirmed.order,
                         Order::Descending,
                         Order::Descending.text(),
                     )
                     .on_hover_text(Order::Descending.hover_text());
                 })
                 .response
-                .on_hover_text(self.order.hover_text());
+                .on_hover_text(self.unconfirmed.order.hover_text());
             ui.end_row();
 
             // Statistic
@@ -371,7 +353,7 @@ impl Settings {
 
             // https://numpy.org/devdocs/reference/generated/numpy.std.html
             ui.label(localize!("ddof"));
-            ui.add(Slider::new(&mut self.ddof, 0..=2));
+            ui.add(Slider::new(&mut self.unconfirmed.ddof, 0..=2));
             ui.end_row();
 
             ui.separator();
@@ -380,27 +362,53 @@ impl Settings {
     }
 }
 
-impl Default for Settings {
-    fn default() -> Self {
-        Self::new(None)
+/// Composition confirmable settings
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub(crate) struct Confirmable {
+    pub(crate) adduct: f64,
+    pub(crate) ddof: u8,
+    pub(crate) groups: VecDeque<Group>,
+    pub(crate) join: Join,
+    pub(crate) method: Method,
+    pub(crate) order: Order,
+    pub(crate) show_filtered: bool,
+    pub(crate) show_nulls: bool,
+    pub(crate) sort: Sort,
+}
+
+impl Confirmable {
+    pub(crate) const fn new() -> Self {
+        Self {
+            adduct: 0.0,
+            ddof: 1,
+            groups: VecDeque::new(),
+            join: Join::Left,
+            method: Method::VanderWal,
+            order: Order::Descending,
+            show_filtered: false,
+            show_nulls: false,
+            sort: Sort::Value,
+        }
     }
 }
 
-impl Hash for Settings {
+impl Default for Confirmable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Hash for Confirmable {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.index.hash(state);
-        self.percent.hash(state);
-        self.precision.hash(state);
-        self.resizable.hash(state);
-        self.sticky_columns.hash(state);
         self.adduct.ord().hash(state);
-        self.method.hash(state);
-        self.groups.hash(state);
-        self.show.hash(state);
-        self.sort.hash(state);
-        self.order.hash(state);
-        self.join.hash(state);
         self.ddof.hash(state);
+        self.groups.hash(state);
+        self.join.hash(state);
+        self.method.hash(state);
+        self.order.hash(state);
+        self.show_filtered.hash(state);
+        self.show_nulls.hash(state);
+        self.sort.hash(state);
     }
 }
 
@@ -459,22 +467,6 @@ impl Method {
         match self {
             Self::Gunstone => localize!("gunstone.description"),
             Self::VanderWal => localize!("vander_wal.description"),
-        }
-    }
-}
-
-/// Filters
-#[derive(Clone, Debug, Default, Deserialize, Hash, PartialEq, Serialize)]
-pub(crate) struct Show {
-    pub(crate) nulls: bool,
-    pub(crate) filtered: bool,
-}
-
-impl Show {
-    pub(crate) const fn new() -> Self {
-        Self {
-            nulls: false,
-            filtered: false,
         }
     }
 }

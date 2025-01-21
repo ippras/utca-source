@@ -1,5 +1,5 @@
 use self::{
-    settings::{Bundle, Settings},
+    settings::{Confirmable, Settings},
     state::State,
     table::TableView,
 };
@@ -26,9 +26,8 @@ const ID_SOURCE: &str = "Composition";
 pub(crate) struct Pane {
     pub(crate) source: Vec<MetaDataFrame>,
     pub(crate) target: DataFrame,
-    pub(crate) settings: Bundle,
+    pub(crate) settings: Settings,
     state: State,
-    pub(crate) plot: bool,
 }
 
 impl Pane {
@@ -36,9 +35,8 @@ impl Pane {
         Self {
             source: frames,
             target: DataFrame::empty(),
-            settings: Bundle::new(index),
+            settings: Settings::new(index),
             state: State::new(),
-            plot: false,
         }
     }
 
@@ -47,7 +45,7 @@ impl Pane {
     }
 
     pub(crate) fn title(&self) -> String {
-        match self.settings.confirmed.index {
+        match self.settings.index {
             Some(index) => self.source[index].meta.title(),
             None => localize!("composition"),
         }
@@ -68,17 +66,15 @@ impl Pane {
             for index in 0..self.source.len() {
                 clicked |= ui
                     .selectable_value(
-                        &mut self.settings.confirmed.index,
+                        &mut self.settings.index,
                         Some(index),
                         self.source[index].meta.title(),
                     )
                     .clicked()
             }
-            ui.selectable_value(
-                &mut self.settings.confirmed.index,
-                None,
-                "Mean ± standard deviations",
-            );
+            clicked |= ui
+                .selectable_value(&mut self.settings.index, None, "Mean ± standard deviations")
+                .clicked();
             if clicked {
                 ui.close_menu();
             }
@@ -95,7 +91,7 @@ impl Pane {
         }
         // Resize
         ui.toggle_value(
-            &mut self.settings.confirmed.resizable,
+            &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
         .on_hover_text(localize!("resize"));
@@ -108,10 +104,13 @@ impl Pane {
         ui.separator();
         // View
         ui.visuals_mut().widgets.hovered = Visuals::default().widgets.hovered;
-        self.plot ^= ui
+        if ui
             .button(RichText::new(CHART_BAR).heading())
             .on_hover_text(localize!("visualization"))
-            .clicked();
+            .clicked()
+        {
+            self.state.view.toggle();
+        }
         ui.separator();
         response
     }
@@ -123,13 +122,13 @@ impl Pane {
                 .cache::<CompositionComputed>()
                 .get(CompositionKey {
                     frames: &self.source,
-                    settings: &self.settings.confirmed,
+                    settings: &self.settings,
                 })
         });
         // if self.plot {
         //     PlotView::new(&self.target).ui(ui);
         // } else {
-        TableView::new(&self.target, &self.settings.confirmed, &mut self.state).show(ui);
+        TableView::new(&self.target, &self.settings, &mut self.state).show(ui);
         // }
     }
 
@@ -139,7 +138,7 @@ impl Pane {
             .default_pos(ui.next_widget_position())
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| {
-                self.settings.unconfirmed.show(ui, &self.target);
+                self.settings.show(ui, &self.target);
                 let enabled = hash(&self.settings.confirmed) != hash(&self.settings.unconfirmed);
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.horizontal(|ui| {

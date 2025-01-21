@@ -1,9 +1,9 @@
 use super::{ID_SOURCE, Settings, State};
 use crate::{
-    app::{panes::MARGIN, text::Text, widgets::FloatWidget},
+    app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
 };
-use egui::{Frame, Id, Margin, TextStyle, Ui};
+use egui::{Frame, Id, Margin, Response, TextStyle, Ui};
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
@@ -45,7 +45,7 @@ impl TableView<'_> {
         }
         let height = ui.text_style_height(&TextStyle::Heading);
         let num_rows = self.data_frame.height() as u64 + 1;
-        let num_columns = self.settings.groups.len() * 2 + 1;
+        let num_columns = self.settings.confirmed.groups.len() * 2 + 1;
         let top = vec![0..1, 1..num_columns];
         let mut middle = vec![0..1];
         const STEP: usize = 2;
@@ -86,7 +86,7 @@ impl TableView<'_> {
             (1, column) => {
                 if column.start % 2 == 1 {
                     let index = column.start / 2;
-                    let composition = self.settings.groups[index].composition;
+                    let composition = self.settings.confirmed.groups[index].composition;
                     ui.heading(composition.text())
                         .on_hover_text(composition.hover_text());
                 } else if column.start != 0 {
@@ -126,14 +126,16 @@ impl TableView<'_> {
     ) -> PolarsResult<()> {
         match (row, column) {
             (row, INDEX) => {
-                ui.label(row.to_string());
+                let indices = self.data_frame["Index"].u32()?;
+                let index = indices.get(row).unwrap();
+                ui.label(index.to_string());
             }
             (row, column) => {
-                let index = (column.start + 1) / 2;
-                let composition = self.data_frame[index].struct_()?;
+                let index = (column.start + 1) / 2 - 1;
                 if column.start % 2 == 1 {
-                    let key = composition.field_by_name("Key")?;
-                    match self.settings.groups[index - 1].composition {
+                    let keys = self.data_frame["Keys"].struct_()?;
+                    let key = &keys.fields_as_series()[index];
+                    match self.settings.confirmed.groups[index].composition {
                         MC => {
                             FloatWidget::new(|| Ok(key.f64()?.get(row)))
                                 .hover()
@@ -164,10 +166,10 @@ impl TableView<'_> {
                             };
                             ui.label(format!("{}{}{}", r#type(sn1)?, r#type(sn2)?, r#type(sn3)?));
                         }
-                        SC => {
-                            ui.label(key.str_value(row)?);
-                        }
-                        PSC | SSC => {
+                        // SC => {
+                        //     ui.label(key.str_value(row)?);
+                        // }
+                        SC | PSC | SSC => {
                             let sn1 = key.struct_()?.field_by_name("StereospecificNumber1")?;
                             let sn2 = key.struct_()?.field_by_name("StereospecificNumber2")?;
                             let sn3 = key.struct_()?.field_by_name("StereospecificNumber3")?;
@@ -192,29 +194,124 @@ impl TableView<'_> {
                         }
                     }
                 } else {
-                    FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.get(row)))
-                        .percent(self.settings.percent)
-                        .precision(Some(self.settings.precision))
-                        .hover()
-                        .show(ui);
+                    // self.data_frame["Experimental"]
+                    //     .struct_()?
+                    //     .field_by_name("Triacylglycerol")?
+                    self.value(
+                        ui,
+                        self.data_frame["Values"].as_materialized_series(),
+                        Some(row),
+                        index,
+                        self.settings.percent,
+                    )?;
+                    // FloatWidget::new(|| {
+                    //     let Some(values) = self.data_frame["Values"].list()?.get_as_series(row)
+                    //     else {
+                    //         return Ok(None);
+                    //     };
+                    //     Ok(values.f64()?.get(index))
+                    // })
+                    // .percent(self.settings.percent)
+                    // .precision(Some(self.settings.precision))
+                    // .hover()
+                    // .show(ui);
                 }
             }
+            _ => {}
         }
         Ok(())
     }
 
     fn footer_cell_content_ui(&mut self, ui: &mut Ui, column: Range<usize>) -> PolarsResult<()> {
-        // Last
-        let index = self.settings.groups.len();
-        if column.start == index * 2 {
-            let composition = self.data_frame[index].struct_()?;
-            FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.sum()))
-                .percent(self.settings.percent)
+        // // Last
+        // let index = self.settings.groups.len();
+        // if column.start == index * 2 {
+        //     let composition = self.data_frame[index].struct_()?;
+        //     FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.sum()))
+        //         .percent(self.settings.percent)
+        //         .precision(Some(self.settings.precision))
+        //         .hover()
+        //         .show(ui);
+        // }
+        Ok(())
+    }
+
+    fn value(
+        &self,
+        ui: &mut Ui,
+        series: &Series,
+        row: Option<usize>,
+        index: usize,
+        percent: bool,
+    ) -> PolarsResult<()> {
+        let list = series.list()?;
+        Ok(match list.inner_dtype() {
+            DataType::Float64 => {
+                FloatWidget::new(|| {
+                    Ok(if let Some(row) = row {
+                        let Some(values) = list.get_as_series(row) else {
+                            return Ok(None);
+                        };
+                        values.f64()?.get(index)
+                    } else {
+                        let Some(values) = list.get_as_series(0) else {
+                            return Ok(None);
+                        };
+                        values.f64()?.sum()
+                    })
+                })
+                .percent(percent)
                 .precision(Some(self.settings.precision))
                 .hover()
                 .show(ui);
-        }
-        Ok(())
+            }
+            DataType::Struct(_) => {
+                FloatWidget::new(|| {
+                    Ok(if let Some(row) = row {
+                        let Some(mean) = list.get_as_series(row) else {
+                            return Ok(None);
+                        };
+                        mean.struct_()?.field_by_name("Mean")?.f64()?.get(index)
+                    } else {
+                        let Some(mean) = list.get_as_series(0) else {
+                            return Ok(None);
+                        };
+                        mean.struct_()?.field_by_name("Mean")?.f64()?.sum()
+                    })
+                })
+                .percent(percent)
+                .precision(Some(self.settings.precision))
+                .hover()
+                .show(ui);
+                ui.label("±");
+                FloatWidget::new(|| {
+                    Ok(if let Some(row) = row {
+                        let Some(standard_deviation) = list.get_as_series(row) else {
+                            return Ok(None);
+                        };
+                        standard_deviation
+                            .struct_()?
+                            .field_by_name("StandardDeviation")?
+                            .f64()?
+                            .get(index)
+                    } else {
+                        let Some(standard_deviation) = list.get_as_series(0) else {
+                            return Ok(None);
+                        };
+                        standard_deviation
+                            .struct_()?
+                            .field_by_name("StandardDeviation")?
+                            .f64()?
+                            .sum()
+                    })
+                })
+                .percent(percent)
+                .precision(Some(self.settings.precision))
+                .hover()
+                .show(ui);
+            }
+            _ => unreachable!(),
+        })
     }
 }
 
@@ -238,7 +335,7 @@ impl TableDelegate for TableView<'_> {
             .inner_margin(Margin::symmetric(MARGIN.x, MARGIN.y))
             .show(ui, |ui| {
                 self.cell_content_ui(ui, cell.row_nr as _, cell.col_nr..cell.col_nr + 1)
-                    .unwrap()
+                    .context(ui.ctx())
             });
     }
 }

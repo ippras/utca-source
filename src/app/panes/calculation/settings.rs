@@ -1,6 +1,7 @@
 use super::State;
 use crate::{app::MAX_PRECISION, localize};
 use egui::{ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
+use egui_ext::LabeledSeparator;
 use egui_phosphor::regular::BROWSERS;
 use serde::{Deserialize, Serialize};
 
@@ -20,9 +21,10 @@ pub(crate) struct Settings {
     pub(crate) normalize: Normalize,
     pub(crate) unsigned: bool,
     pub(crate) christie: bool,
-    pub(crate) factors: bool,
-
     pub(crate) ddof: u8,
+
+    pub(crate) factors: bool,
+    pub(crate) theoretical: bool,
 }
 
 impl Settings {
@@ -39,8 +41,9 @@ impl Settings {
             normalize: Normalize::new(),
             unsigned: true,
             christie: false,
-            factors: true,
             ddof: 1,
+            factors: true,
+            theoretical: true,
         }
     }
 }
@@ -131,11 +134,6 @@ impl Settings {
             });
             ui.end_row();
 
-            // Factors
-            ui.label(localize!("factors"));
-            ui.checkbox(&mut self.factors, "");
-            ui.end_row();
-
             // Christie
             ui.label(localize!("christie"));
             ui.horizontal(|ui| {
@@ -148,27 +146,43 @@ impl Settings {
             ui.end_row();
 
             ui.separator();
-            ui.separator();
+            ui.labeled_separator("Show");
             ui.end_row();
 
-            // ui.label(localize!("merge"));
-            // ui.checkbox(&mut self.merge, "");
-            // ComboBox::from_id_salt("show")
-            //     .selected_text(self.show.text())
-            //     .show_ui(ui, |ui| {
-            //         ui.selectable_value(&mut self.show, Show::Separate, Show::Separate.text())
-            //             .on_hover_text(Show::Separate.hover_text());
-            //         ui.selectable_value(&mut self.show, Show::Join, Show::Join.text())
-            //             .on_hover_text(Show::Join.hover_text());
-            //     })
-            //     .response
-            //     .on_hover_text(self.show.hover_text());
-            // ui.end_row();
-
-            // https://numpy.org/devdocs/reference/generated/numpy.std.html
-            ui.label(localize!("ddof"));
-            ui.add(Slider::new(&mut self.ddof, 0..=2));
+            // Factors
+            ui.label(localize!("factors"));
+            ui.checkbox(&mut self.factors, "");
             ui.end_row();
+
+            // Theoretical
+            ui.label(localize!("theoretical"));
+            ui.checkbox(&mut self.theoretical, "");
+            ui.end_row();
+
+            if self.index.is_none() {
+                ui.separator();
+                ui.labeled_separator("Mean and standard deviations");
+                ui.end_row();
+
+                // ui.label(localize!("merge"));
+                // ui.checkbox(&mut self.merge, "");
+                // ComboBox::from_id_salt("show")
+                //     .selected_text(self.show.text())
+                //     .show_ui(ui, |ui| {
+                //         ui.selectable_value(&mut self.show, Show::Separate, Show::Separate.text())
+                //             .on_hover_text(Show::Separate.hover_text());
+                //         ui.selectable_value(&mut self.show, Show::Join, Show::Join.text())
+                //             .on_hover_text(Show::Join.hover_text());
+                //     })
+                //     .response
+                //     .on_hover_text(self.show.hover_text());
+                // ui.end_row();
+
+                // https://numpy.org/devdocs/reference/generated/numpy.std.html
+                ui.label(localize!("ddof"));
+                ui.add(Slider::new(&mut self.ddof, 0..=2));
+                ui.end_row();
+            }
         });
     }
 }

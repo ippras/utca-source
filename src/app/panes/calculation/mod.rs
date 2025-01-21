@@ -115,7 +115,10 @@ impl Pane {
                         .cache::<CalculationComputed>()
                         .get(CalculationKey {
                             frames: &self.source,
-                            settings: &self.settings,
+                            settings: &Settings {
+                                index: Some(index),
+                                ..self.settings
+                            },
                         })
                 });
                 target.push(MetaDataFrame::new(meta, data));

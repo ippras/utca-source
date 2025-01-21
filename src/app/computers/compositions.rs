@@ -1,4 +1,4 @@
-use crate::app::panes::composition::settings::{Order, Settings, Sort};
+use crate::app::panes::composition::settings::{Order, Confirmable, Sort};
 use polars::prelude::*;
 use std::borrow::Cow;
 
@@ -17,7 +17,7 @@ impl LazyFrameExt for LazyFrame {
 pub struct Compositions(pub LazyFrame);
 
 impl Compositions {
-    pub fn meta(self, settings: &Settings) -> PolarsResult<Self> {
+    pub fn meta(self, settings: &Confirmable) -> PolarsResult<Self> {
         let values = |index| {
             concat_list([all()
                 .exclude([r#"^Composition\d$"#])
@@ -49,8 +49,8 @@ impl Compositions {
         Ok(Self(lazy_frame))
     }
 
-    pub fn filter(mut self, settings: &Settings) -> Self {
-        if !settings.show.filtered {
+    pub fn filter(mut self, settings: &Confirmable) -> Self {
+        if !settings.show_filtered {
             let mut predicate = lit(true);
             for (index, group) in settings.groups.iter().enumerate() {
                 predicate = predicate.and(
@@ -67,7 +67,7 @@ impl Compositions {
         self
     }
 
-    pub fn sort(mut self, settings: &Settings) -> Self {
+    pub fn sort(mut self, settings: &Confirmable) -> Self {
         let mut sort_options = SortMultipleOptions::default();
         if let Order::Descending = settings.order {
             sort_options = sort_options
@@ -93,7 +93,7 @@ impl Compositions {
         self
     }
 
-    pub fn restruct(self, settings: &Settings) -> LazyFrame {
+    pub fn restruct(self, settings: &Confirmable) -> LazyFrame {
         let mut expr = Vec::new();
         for index in 0..settings.groups.len() {
             expr.push(
