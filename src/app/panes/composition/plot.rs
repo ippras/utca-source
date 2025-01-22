@@ -1,63 +1,75 @@
-use egui::{Align2, Color32, Ui, Vec2b};
+use super::{ID_SOURCE, Settings, State};
+use crate::special::composition::{MC, NC, PMC, UC};
+use egui::{Align2, Color32, Id, Ui, Vec2b};
 use egui_plot::{AxisHints, Bar, BarChart, Line, Plot, PlotPoints};
 use polars::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::{
-    hash::{Hash, Hasher},
-    iter::zip,
-};
+// use super::settings::MC;
 
 /// Composition plot
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct PlotView<'a> {
     pub(crate) data_frame: &'a DataFrame,
-    pub(crate) settings: Settings,
+    pub(crate) settings: &'a Settings,
+    pub(crate) state: &'a mut State,
 }
 
 impl<'a> PlotView<'a> {
-    pub const fn new(data_frame: &'a DataFrame) -> Self {
+    pub const fn new(
+        data_frame: &'a DataFrame,
+        settings: &'a Settings,
+        state: &'a mut State,
+    ) -> Self {
         Self {
             data_frame,
-            settings: Settings::new(),
+            settings,
+            state,
         }
     }
 }
 
 impl PlotView<'_> {
-    fn bar_chart(&self, column: &Column) -> PolarsResult<BarChart> {
-        let key = column.struct_()?.field_by_name("Key")?;
-        let value = column.struct_()?.field_by_name("Value")?;
-        let mean = value.struct_()?.field_by_name("Mean")?;
-        // let points: Option<Vec<[f64; 2]>> = zip(key.str()?, mean.f64()?).enumerate()
-        //     .map(|(key, value)| Some([key?, value?]))
-        //     .collect();
-        let bars: Option<Vec<_>> = mean
-            .f64()?
-            .iter()
-            .enumerate()
-            // .map(|(index, value)| Some([index as _, value?]))
-            .map(|(index, value)| Some(Bar::new(index as _, value?).name("name")))
-            .collect();
-        Ok(BarChart::new(bars.unwrap()))
-        // let bar = Bar::new(x, y).name(name).base_offset(offset);
-        // Ok(BarChart::new(PlotPoints::new(points.unwrap())).color(Color32::from_rgb(200, 100, 100)))
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
+        self.try_show(ui).unwrap()
     }
 
-    pub(crate) fn ui(&mut self, ui: &mut Ui) {
-        let mut plot = Plot::new("plot")
-            .allow_drag(self.settings.drag)
-            .allow_scroll(self.settings.scroll)
-            .custom_x_axes(vec![AxisHints::new_x().label("Time (s)")]);
-        if self.settings.legend {
+    pub(crate) fn try_show(&mut self, ui: &mut Ui) -> PolarsResult<()> {
+        // println!("self: {}", self.data_frame.unnest(["Keys"]).unwrap());
+        let id_salt = Id::new(ID_SOURCE).with("Plot");
+        let mut plot = Plot::new(id_salt)
+            .allow_drag(self.state.allow_drag)
+            .allow_scroll(self.state.allow_scroll)
+            .custom_x_axes(vec![AxisHints::new_x().label("Composition")]);
+        if self.state.show_legend {
             plot = plot.legend(Default::default());
         }
-        plot.show(ui, |plot_ui| {
-            for column in self.data_frame.get_columns() {
-                plot_ui.bar_chart(self.bar_chart(column).unwrap().name("T (°C)"));
+        plot.show(ui, |plot_ui| -> PolarsResult<()> {
+            let indices = &self.data_frame["Index"];
+            let keys = self.data_frame["Keys"].struct_()?;
+            let values = self.data_frame["Values"].array()?;
+            let groups = &self.settings.confirmed.groups;
+            let index = groups.len() - 1;
+            let fields = &keys.fields_as_series();
+            let keys = &fields[index];
+            let mut bars = Vec::new();
+            for (row, values) in values.into_iter().enumerate() {
+                let values = values.unwrap();
+                let mut value = values.f64()?.get(index).unwrap();
+                let key = keys.str_value(row)?;
+                let x = match self.settings.confirmed.groups[index].composition {
+                    MC => keys.f64()?.get(row).unwrap(),
+                    NC => keys.i64()?.get(row).unwrap() as _,
+                    UC => keys.i64()?.get(row).unwrap() as _,
+                    _ => indices.u32()?.get(row).unwrap() as _,
+                };
+                if self.settings.percent {
+                    value *= 100.0;
+                }
+                bars.push(Bar::new(x, value).name(key));
             }
-            // plot_ui.line(Self::f_line(data).name("F (kN)"));
-            // plot_ui.line(Self::z_line(data).name("Z (mm)"));
+            plot_ui.bar_chart(BarChart::new(bars).name(index));
+            Ok(())
         });
+        Ok(())
 
         // let Self { context } = self;
         // let p = context.settings.visualization.precision;
@@ -299,33 +311,6 @@ impl PlotView<'_> {
         //         }
         //     }
         // }
-    }
-}
-
-/// Visualization plot settings
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-pub(crate) struct Settings {
-    pub(crate) drag: Vec2b,
-    pub(crate) scroll: Vec2b,
-    pub(crate) legend: bool,
-}
-
-impl Hash for Settings {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.drag.x.hash(state);
-        self.drag.y.hash(state);
-        self.scroll.x.hash(state);
-        self.scroll.y.hash(state);
-    }
-}
-
-impl Settings {
-    pub const fn new() -> Self {
-        Self {
-            drag: Vec2b { x: false, y: false },
-            scroll: Vec2b { x: false, y: false },
-            legend: true,
-        }
     }
 }
 

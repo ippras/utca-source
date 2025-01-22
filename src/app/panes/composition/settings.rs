@@ -26,7 +26,6 @@ pub(crate) struct Settings {
     pub(crate) percent: bool,
     pub(crate) precision: usize,
     pub(crate) resizable: bool,
-    pub(crate) round_mass: u32,
     pub(crate) sticky_columns: usize,
 
     pub(crate) confirmed: Confirmable,
@@ -40,7 +39,6 @@ impl Settings {
             percent: true,
             precision: 1,
             resizable: false,
-            round_mass: 1,
             sticky_columns: 0,
 
             confirmed: Confirmable::new(),
@@ -61,11 +59,6 @@ impl Settings {
             // Precision
             ui.label(localize!("precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
-            ui.end_row();
-
-            // Round mass
-            ui.label(localize!("round-mass"));
-            ui.add(Slider::new(&mut self.round_mass, 0..=MAX_PRECISION as _));
             ui.end_row();
 
             // Percent
@@ -257,10 +250,13 @@ impl Settings {
                 ui.add(
                     DragValue::new(adduct)
                         .range(0.0..=f64::MAX)
-                        .speed(1.0 / 10f64.powi(self.precision as _)),
+                        .speed(1.0 / 10f64.powi(self.unconfirmed.round_mass as _))
+                        .custom_formatter(|n, _| {
+                            format!("{n:.*}", self.unconfirmed.round_mass as _)
+                        }),
                 )
                 .on_hover_text(format!("{adduct}"));
-                ComboBox::from_id_salt(ui.next_auto_id())
+                ComboBox::from_id_salt(ui.auto_id_with("Adduct"))
                     .selected_text(match *adduct {
                         H => "H",
                         NH4 => "NH4",
@@ -276,6 +272,14 @@ impl Settings {
                         ui.selectable_value(adduct, LI, "Li");
                     });
             });
+            ui.end_row();
+
+            // Round mass
+            ui.label(localize!("round-mass"));
+            ui.add(Slider::new(
+                &mut self.unconfirmed.round_mass,
+                0..=MAX_PRECISION as _,
+            ));
             ui.end_row();
 
             // View
@@ -374,6 +378,7 @@ pub(crate) struct Confirmable {
     pub(crate) join: Join,
     pub(crate) method: Method,
     pub(crate) order: Order,
+    pub(crate) round_mass: u32,
     pub(crate) show_filtered: bool,
     pub(crate) sort: Sort,
 }
@@ -387,6 +392,7 @@ impl Confirmable {
             join: Join::Left,
             method: Method::VanderWal,
             order: Order::Descending,
+            round_mass: 2,
             show_filtered: false,
             sort: Sort::Value,
         }
@@ -407,6 +413,7 @@ impl Hash for Confirmable {
         self.join.hash(state);
         self.method.hash(state);
         self.order.hash(state);
+        self.round_mass.hash(state);
         self.show_filtered.hash(state);
         self.sort.hash(state);
     }

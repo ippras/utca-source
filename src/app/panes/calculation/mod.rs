@@ -146,7 +146,7 @@ impl Pane {
         // Settings
         let mut open_settings_window = self.state.open_settings_window;
         Window::new(format!("{GEAR} Calculation settings"))
-            .id(ui.next_auto_id())
+            .id(ui.auto_id_with(ID_SOURCE))
             .default_pos(ui.next_widget_position())
             .open(&mut open_settings_window)
             .show(ui.ctx(), |ui| {
@@ -157,7 +157,7 @@ impl Pane {
         let mut open_christie_window = self.state.open_christie_window;
         Window::new(format!("{MATH_OPERATIONS} Christie"))
             .default_pos(ui.next_widget_position())
-            .id(ui.auto_id_with("christie"))
+            .id(ui.auto_id_with("Christie"))
             .open(&mut open_christie_window)
             .show(ui.ctx(), |ui| {
                 ScrollArea::vertical().show(ui, |ui| {

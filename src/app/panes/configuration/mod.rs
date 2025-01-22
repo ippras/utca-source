@@ -409,7 +409,7 @@ impl Pane {
 
     pub(crate) fn windows(&mut self, ui: &mut Ui) {
         Window::new(format!("{GEAR} Configuration settings"))
-            .id(ui.next_auto_id())
+            .id(ui.auto_id_with(ID_SOURCE))
             .default_pos(ui.next_widget_position())
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| self.settings.show(ui));

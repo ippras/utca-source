@@ -1,7 +1,7 @@
 use crate::{
     app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
-    utils::polars::ExprExt as _,
+    utils::polars::{ExprExt as _, column, round},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{fatty_acid::Kind, prelude::*};
@@ -364,17 +364,29 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
                 MC => col("FattyAcid")
                     .tag()
                     .mass(lit(settings.confirmed.adduct))
+                    .map(
+                        column(round(settings.confirmed.round_mass)),
+                        GetOutput::same_type(),
+                    )
                     .alias("MC"),
                 PMC => col("FattyAcid")
                     .tag()
                     .positional(
-                        |expr| expr.fa().mass(Kind::Rcooh),
+                        |expr| {
+                            expr.fa()
+                                .mass(Kind::Rcooh)
+                                .round(settings.confirmed.round_mass)
+                        },
                         PermutationOptions::default().map(true),
                     )
                     .alias("PMC"),
                 SMC => col("FattyAcid")
                     .tag()
-                    .map(|expr| expr.fa().mass(Kind::Rcooh))
+                    .map(|expr| {
+                        expr.fa()
+                            .mass(Kind::Rcooh)
+                            .round(settings.confirmed.round_mass)
+                    })
                     .alias("SMC"),
                 NC => col("FattyAcid").tag().ecn().alias("NC"),
                 PNC => col("FattyAcid")

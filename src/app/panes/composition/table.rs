@@ -14,6 +14,7 @@ use std::ops::{Add, Range};
 const INDEX: Range<usize> = 0..1;
 
 /// Composition table
+#[derive(Debug)]
 pub(super) struct TableView<'a> {
     data_frame: &'a DataFrame,
     settings: &'a Settings,
@@ -139,12 +140,12 @@ impl TableView<'_> {
                     match self.settings.confirmed.groups[index].composition {
                         MC => {
                             FloatWidget::new(|| Ok(key.f64()?.get(row)))
-                                .precision(Some(self.settings.round_mass as _))
+                                .precision(Some(self.settings.precision))
                                 .hover()
                                 .show(ui);
                         }
                         PMC | SMC => {
-                            let key = tag_map(round(self.settings.round_mass))(key)?;
+                            let key = tag_map(round(self.settings.precision as _))(key)?;
                             ui.label(key.str_value(row)?);
                         }
                         NC | PNC | SNC => {

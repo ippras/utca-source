@@ -6,14 +6,15 @@ use self::{
 };
 use super::PaneDelegate;
 use crate::{
-    app::computers::{CompositionComputed, CompositionKey},
+    app::{
+        computers::{CompositionComputed, CompositionKey},
+        text::Text,
+    },
     localize,
 };
-use egui::{
-    CursorIcon, Response, RichText, ScrollArea, Sides, Ui, Visuals, Window, menu::bar, util::hash,
-};
+use egui::{CursorIcon, Response, RichText, ScrollArea, Ui, Window, menu::bar, util::hash};
 use egui_phosphor::regular::{
-    ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHART_BAR, CHECK, GEAR, INTERSECT_THREE, LIST,
+    ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHECK, GEAR, INTERSECT_THREE, LIST,
 };
 use metadata::MetaDataFrame;
 use polars::prelude::*;
@@ -103,14 +104,15 @@ impl Pane {
         );
         ui.separator();
         // View
-        ui.visuals_mut().widgets.hovered = Visuals::default().widgets.hovered;
-        if ui
-            .button(RichText::new(CHART_BAR).heading())
-            .on_hover_text(localize!("visualization"))
-            .clicked()
-        {
-            self.state.view.toggle();
-        }
+        ui.menu_button(RichText::new(self.state.view.icon()).heading(), |ui| {
+            ui.selectable_value(&mut self.state.view, View::Plot, View::Plot.text())
+                .on_hover_text(View::Plot.hover_text());
+            ui.selectable_value(&mut self.state.view, View::Table, View::Table.text())
+                .on_hover_text(View::Table.hover_text());
+        })
+        .response
+        .on_hover_text(self.state.view.hover_text());
+        ui.end_row();
         ui.separator();
         response
     }
@@ -126,14 +128,14 @@ impl Pane {
                 })
         });
         match self.state.view {
-            View::Plot => TableView::new(&self.target, &self.settings, &mut self.state).show(ui),
+            View::Plot => PlotView::new(&self.target, &self.settings, &mut self.state).show(ui),
             View::Table => TableView::new(&self.target, &self.settings, &mut self.state).show(ui),
         }
     }
 
     fn windows(&mut self, ui: &mut Ui) {
         Window::new(format!("{GEAR} Composition settings"))
-            .id(ui.next_auto_id())
+            .id(ui.auto_id_with(ID_SOURCE))
             .default_pos(ui.next_widget_position())
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| {
