@@ -158,10 +158,6 @@ impl Computer {
         lazy_frame = lazy_frame.with_row_index("Index", None);
         lazy_frame.collect()
     }
-
-    // fn vander_wal(&mut self, data_frame: &DataFrame, settings: &Settings) -> PolarsResult<Tags> {
-    //     Ok(())
-    // }
 }
 
 impl ComputerMut<Key<'_>, Value> for Computer {
@@ -447,17 +443,18 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
         .agg([as_struct(vec![col("Label"), col("FattyAcid"), col("Value")]).alias("Species")]);
     lazy_frame = lazy_frame.select([
         as_struct(vec![col(r#"^Key\d$"#)]).alias("Keys"),
-        concat_list([col(r#"^Value\d$"#)])?.alias("Values"),
+        concat_arr(vec![col(r#"^Value\d$"#)])?.alias("Values"),
         col("Species"),
     ]);
     Ok(lazy_frame)
 }
 
 fn meta(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+    // TODO [array_get?](https://docs.rs/polars/latest/polars/prelude/array/trait.ArrayNameSpace.html)
     let values = |index| {
         concat_list([all()
             .exclude(["Keys", r#"^Value\d$"#])
-            .list()
+            .arr()
             .get(lit(index as u32), false)])
     };
     for index in 0..settings.confirmed.groups.len() {
@@ -475,7 +472,7 @@ fn meta(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFram
     // Group
     lazy_frame = lazy_frame.select([
         col("Keys"),
-        concat_list([col(r#"^Value\d$"#)])?.alias("Values"),
+        concat_arr(vec![col(r#"^Value\d$"#)])?.alias("Values"),
     ]);
     Ok(lazy_frame)
 }
@@ -484,7 +481,7 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     if !settings.confirmed.show_filtered {
         let mut predicate = lit(true);
         for (index, group) in settings.confirmed.groups.iter().enumerate() {
-            let mut expr = col("Values").list().get(lit(index as u32), false);
+            let mut expr = col("Values").arr().get(lit(index as u32), false);
             if settings.index.is_none() {
                 expr = expr.struct_().field_by_name("Mean");
             }
@@ -502,15 +499,19 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
             .with_order_descending(true)
             .with_nulls_last(true);
     }
-    let mut expr = col("Values");
-    if settings.index.is_none() {
-        expr = expr
-            .list()
-            .eval(col("").struct_().field_by_name("Mean"), true);
-    }
     lazy_frame = match settings.confirmed.sort {
         Sort::Key => lazy_frame.sort_by_exprs([col("Keys")], sort_options),
-        Sort::Value => lazy_frame.sort_by_exprs([expr], sort_options),
+        Sort::Value => {
+            let mut expr = col("Values");
+            if settings.index.is_none() {
+                expr = expr
+                    .arr()
+                    .to_list()
+                    .list()
+                    .eval(col("").struct_().field_by_name("Mean"), true);
+            }
+            lazy_frame.sort_by_exprs([expr], sort_options)
+        }
     };
     // TODO sort species
     // lazy_frame = lazy_frame.with_columns([col("Species").list().eval(

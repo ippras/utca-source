@@ -37,6 +37,7 @@ pub fn round(decimals: u32) -> impl Fn(&Series) -> PolarsResult<Series> {
     move |series| series.round(decimals)
 }
 
+/// `Boolean` to `String`
 pub fn r#type(series: &Series) -> PolarsResult<Series> {
     Ok(series
         .bool()?

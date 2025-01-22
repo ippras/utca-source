@@ -41,7 +41,7 @@ num = "0.4.3"
 polars = { version = "0.45.1", default-features = false, features = [
     "concat_str",
     "cross_join",
-    "dtype-array",  # TODO
+    "dtype-array",
     "dtype-i8",
     "dtype-struct",
     "dtype-u8",
@@ -54,22 +54,23 @@ polars = { version = "0.45.1", default-features = false, features = [
     "strings",
     #
     "cum_agg",
-    "ipc",
-    # "range",
     "fmt_no_tty",
+    "ipc",
     "sign",
-    # "polars-io",
-    # "temporal",
-    # "fmt_no_tty",
     # "abs",
     # "array_to_struct",
     # "cum_agg",
     # "diagonal_concat",
+    # "fmt_no_tty",
     # "is_in",
     # "list_count",
     # "list_to_struct",
+    # "polars-io",
+    # "polars-ops", # TODO
+    # "range",
     # "range",
     # "semi_anti_join",
+    # "temporal",
 ] }
 radix_trie = "0.2.1"
 semver = { version = "1.0.25", features = ["serde"] }

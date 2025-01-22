@@ -215,83 +215,10 @@ impl TableView<'_> {
                 self.settings.confirmed.groups.len() - 1,
                 self.settings.percent,
             )?;
-            // let composition = self.data_frame[index].struct_()?;
-            // FloatWidget::new(|| Ok(composition.field_by_name("Value")?.f64()?.sum()))
-            //     .percent(self.settings.percent)
-            //     .precision(Some(self.settings.precision))
-            //     .hover()
-            //     .show(ui);
         }
         Ok(())
     }
 
-    // fn value(
-    //     &self,
-    //     ui: &mut Ui,
-    //     series: &Series,
-    //     row: Option<usize>,
-    //     index: usize,
-    //     percent: bool,
-    // ) -> PolarsResult<()> {
-    //     let list = series.list()?;
-    //     Ok(match list.inner_dtype() {
-    //         DataType::Float64 => {
-    //             FloatWidget::new(|| {
-    //                 Ok(if let Some(row) = row {
-    //                     list_value(series, row, |list| Ok(list.f64()?.get(index)))?
-    //                 } else {
-    //                     list_sum(series, |list| Ok(list.f64()?.get(index)))?
-    //                 })
-    //             })
-    //             .percent(percent)
-    //             .precision(Some(self.settings.precision))
-    //             .hover()
-    //             .show(ui);
-    //         }
-    //         DataType::Struct(_) => {
-    //             FloatWidget::new(|| {
-    //                 Ok(if let Some(row) = row {
-    //                     list_value(series, row, |list| {
-    //                         Ok(list.struct_()?.field_by_name("Mean")?.f64()?.get(index))
-    //                     })?
-    //                 } else {
-    //                     list_sum(series, |list| {
-    //                         Ok(list.struct_()?.field_by_name("Mean")?.f64()?.get(index))
-    //                     })?
-    //                 })
-    //             })
-    //             .percent(percent)
-    //             .precision(Some(self.settings.precision))
-    //             .hover()
-    //             .show(ui);
-    //             ui.label("±");
-    //             FloatWidget::new(|| {
-    //                 Ok(if let Some(row) = row {
-    //                     list_value(series, row, |list| {
-    //                         Ok(list
-    //                             .struct_()?
-    //                             .field_by_name("StandardDeviation")?
-    //                             .f64()?
-    //                             .get(index))
-    //                     })?
-    //                 } else {
-    //                     list_sum(series, |list| {
-    //                         Ok(list
-    //                             .struct_()?
-    //                             .field_by_name("StandardDeviation")?
-    //                             .f64()?
-    //                             .get(index))
-    //                     })?
-    //                 })
-    //             })
-    //             .percent(percent)
-    //             .precision(Some(self.settings.precision))
-    //             .hover()
-    //             .show(ui);
-    //         }
-    //         _ => unreachable!(),
-    //     })
-    // }
     fn value(
         &self,
         ui: &mut Ui,
@@ -301,12 +228,12 @@ impl TableView<'_> {
         percent: bool,
     ) -> PolarsResult<()> {
         Ok(match series.dtype() {
-            DataType::List(box DataType::Float64) => {
+            DataType::Array(inner, _) if inner.is_float() => {
                 FloatWidget::new(|| {
                     Ok(if let Some(row) = row {
-                        list_value(series, row, |list| Ok(list.f64()?.get(index)))?
+                        array_value(series, row, |list| Ok(list.f64()?.get(index)))?
                     } else {
-                        list_sum(series, |list| Ok(list.f64()?.get(index)))?
+                        array_sum(series, |list| Ok(list.f64()?.get(index)))?
                     })
                 })
                 .percent(percent)
@@ -314,14 +241,14 @@ impl TableView<'_> {
                 .hover()
                 .show(ui);
             }
-            DataType::List(box DataType::Struct(_)) => {
+            DataType::Array(inner, _) if inner.is_struct() => {
                 FloatWidget::new(|| {
                     Ok(if let Some(row) = row {
-                        list_value(series, row, |list| {
+                        array_value(series, row, |list| {
                             Ok(list.struct_()?.field_by_name("Mean")?.f64()?.get(index))
                         })?
                     } else {
-                        list_sum(series, |list| {
+                        array_sum(series, |list| {
                             Ok(list.struct_()?.field_by_name("Mean")?.f64()?.get(index))
                         })?
                     })
@@ -333,7 +260,7 @@ impl TableView<'_> {
                 ui.label("±");
                 FloatWidget::new(|| {
                     Ok(if let Some(row) = row {
-                        list_value(series, row, |list| {
+                        array_value(series, row, |list| {
                             Ok(list
                                 .struct_()?
                                 .field_by_name("StandardDeviation")?
@@ -341,7 +268,7 @@ impl TableView<'_> {
                                 .get(index))
                         })?
                     } else {
-                        list_sum(series, |list| {
+                        array_sum(series, |list| {
                             Ok(list
                                 .struct_()?
                                 .field_by_name("StandardDeviation")?
@@ -355,7 +282,7 @@ impl TableView<'_> {
                 .hover()
                 .show(ui);
             }
-            _ => unreachable!(),
+            data_type => panic!("value not implemented for {data_type:?}"),
         })
     }
 }
@@ -385,25 +312,25 @@ impl TableDelegate for TableView<'_> {
     }
 }
 
-fn list_value<T>(
+fn array_value<T>(
     series: &Series,
     row: usize,
     f: impl Fn(Series) -> PolarsResult<Option<T>>,
 ) -> PolarsResult<Option<T>> {
-    let Some(values) = series.list()?.get_as_series(row) else {
+    let Some(values) = series.array()?.get_as_series(row) else {
         return Ok(None);
     };
     Ok(f(values)?)
 }
 
-fn list_sum<T: Add<Output = T>>(
+fn array_sum<T: Add<Output = T>>(
     series: &Series,
     f: impl Fn(Series) -> PolarsResult<Option<T>>,
 ) -> PolarsResult<Option<T>> {
     let mut sum = None;
-    let list = series.list()?;
-    for row in 0..list.len() {
-        if let Some(values) = list.get_as_series(row) {
+    let array = series.array()?;
+    for row in 0..array.len() {
+        if let Some(values) = array.get_as_series(row) {
             sum = match (sum, f(values)?) {
                 (Some(sum), Some(value)) => Some(sum + value),
                 (sum, value) => sum.or(value),
