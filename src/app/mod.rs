@@ -9,8 +9,9 @@ use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
     Align, Align2, CentralPanel, Color32, Context, FontDefinitions, FontSelection, Id, LayerId,
-    Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals,
-    menu::bar, text::LayoutJob, util::IdTypeMap, warn_if_debug_build,
+    Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel,
+    UserAttentionType, ViewportCommand, Visuals, menu::bar, text::LayoutJob, util::IdTypeMap,
+    warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
 use egui_notify::Toasts;
@@ -306,16 +307,16 @@ impl App {
                     });
                     ui.separator();
                     // Configuration
-                    if !self.data.is_empty() {
+                    let frames = self.data.checked();
+                    ui.add_enabled_ui(!frames.is_empty(), |ui| {
                         if ui
                             .button(RichText::new(ConfigurationPane::icon()).size(ICON_SIZE))
                             .clicked()
                         {
-                            let pane =
-                                Pane::Configuration(ConfigurationPane::new(self.data.checked()));
+                            let pane = Pane::Configuration(ConfigurationPane::new(frames));
                             self.tree.insert_pane::<VERTICAL>(pane);
                         }
-                    }
+                    });
                     // Create
                     if ui.button(RichText::new(PLUS).size(ICON_SIZE)).clicked() {
                         let data_frame = DataFrame::empty_with_schema(&SCHEMA);
@@ -337,16 +338,6 @@ impl App {
                     {
                         self.github.toggle(ui);
                     }
-                    // // Save
-                    // if ui
-                    //     .button(RichText::new(FLOPPY_DISK).size(ICON_SIZE))
-                    //     .clicked()
-                    // {
-                    //     if let Err(error) = self.data.save() {
-                    //         error!(%error);
-                    //     }
-                    // }
-
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // About
                         if ui

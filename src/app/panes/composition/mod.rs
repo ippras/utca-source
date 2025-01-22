@@ -10,7 +10,7 @@ use crate::{
     localize,
 };
 use egui::{
-    CursorIcon, Response, RichText, ScrollArea, Ui, Visuals, Window, menu::bar, util::hash,
+    CursorIcon, Response, RichText, ScrollArea, Sides, Ui, Visuals, Window, menu::bar, util::hash,
 };
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CHART_BAR, CHECK, GEAR, INTERSECT_THREE, LIST,

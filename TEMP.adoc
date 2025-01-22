@@ -2,8 +2,18 @@
 
 == log
 
-`$env:RUST_LOG="utca=trace"`
-`$env:RUST_BACKTRACE=1`
+=== win
+
+[source,sh]
+$Env:RUST_LOG="debug"
+
+=== nix
+
+[source,sh]
+$env:RUST_LOG="utca=trace"
+
+[source,sh]
+$env:RUST_BACKTRACE=1
 
 == egui
 

@@ -1,14 +1,13 @@
 use crate::{
-    app::panes::composition::settings::{Filter, Group, Order, Settings, Sort},
+    app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
-    utils::polars::{DataFrameExt as _, ExprExt as _},
+    utils::polars::ExprExt as _,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{fatty_acid::Kind, prelude::*};
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use std::{
-    collections::VecDeque,
     convert::identity,
     hash::{Hash, Hasher},
     process::exit,
@@ -160,60 +159,6 @@ impl Computer {
         lazy_frame.collect()
     }
 
-    // let u = 1.0 - s;
-    // if s <= 2.0 / 3.0 {
-    //     Self {
-    //         s,
-    //         u,
-    //         s3: 0.0,
-    //         s2u: (3.0 * s / 2.0).powi(2),
-    //         su2: 3.0 * s * (3.0 * u - 1.0) / 2.0,
-    //         u3: ((3.0 * u - 1.0) / 2.0).powi(2),
-    //     }
-    // } else {
-    //     Self {
-    //         s,
-    //         u,
-    //         s3: 3.0 * s - 2.0,
-    //         s2u: 3.0 * u,
-    //         su2: 0.0,
-    //         u3: 0.0,
-    //     }
-    // }
-    fn gunstone(&mut self, data_frame: &DataFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
-        let lazy_frame = data_frame
-            .clone()
-            .lazy()
-            .filter(col("FattyAcid").fa().is_saturated())
-            .with_columns([
-                col("TAG.Experimental").sum().alias("S"),
-                col("TAG.Experimental").sum().alias("U"),
-            ]);
-        let s = lazy_frame.clone().collect()?.f64("_Sum").first().unwrap();
-        println!("lazy_frame: {}", lazy_frame.clone().collect().unwrap());
-
-        exit(0);
-        // // Cartesian product (TAG from FA)
-        // let mut tags = fatty_acids.cartesian_product()?;
-        // // Filter
-        // tags = tags.filter(settings);
-
-        // // let gunstone = Gunstone::new(s);
-        // let lazy_frame = key.fatty_acids.0.clone().lazy();
-        // // lazy_frame = lazy_frame.select([
-        // //     col("Label"),
-        // //     col("Formula"),
-        // //     col("TAG.Experimental"),
-        // //     col("DAG1223.Experimental"),
-        // //     col("MAG2.Experimental"),
-        // //     col("DAG13.DAG1223.Calculated"),
-        // //     col("DAG13.MAG2.Calculated"),
-        // // ]);
-        // // lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
-        // println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
-        // lazy_frame.collect().unwrap()
-    }
-
     // fn vander_wal(&mut self, data_frame: &DataFrame, settings: &Settings) -> PolarsResult<Tags> {
     //     Ok(())
     // }
@@ -243,17 +188,81 @@ impl Hash for Key<'_> {
 /// Composition value
 type Value = DataFrame;
 
-fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+fn compute(lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+    match settings.confirmed.method {
+        Method::Gunstone => vander_wal(lazy_frame, settings),
+        Method::VanderWal => vander_wal(lazy_frame, settings),
+    }
+}
+
+// let u = 1.0 - s;
+// if s <= 2.0 / 3.0 {
+//     Self {
+//         s,
+//         u,
+//         s3: 0.0,
+//         s2u: (3.0 * s / 2.0).powi(2),
+//         su2: 3.0 * s * (3.0 * u - 1.0) / 2.0,
+//         u3: ((3.0 * u - 1.0) / 2.0).powi(2),
+//     }
+// } else {
+//     Self {
+//         s,
+//         u,
+//         s3: 3.0 * s - 2.0,
+//         s2u: 3.0 * u,
+//         su2: 0.0,
+//         u3: 0.0,
+//     }
+// }
+fn gunstone(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+    println!("lazy_frame g0: {}", lazy_frame.clone().collect().unwrap());
     lazy_frame = lazy_frame.select([
         col("Index"),
         col("Label"),
         col("FattyAcid"),
         col("Calculated")
             .struct_()
-            .field_by_names(["Monoacylglycerol2", "Diacylglycerol13"]),
+            .field_by_names(["Triacylglycerol"]),
     ]);
-    lazy_frame = vander_wal(lazy_frame, settings)?;
-    Ok(lazy_frame)
+    println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
+    let lazy_frame = lazy_frame.with_columns([
+        col("Triacylglycerol")
+            .filter(col("FattyAcid").fa().is_saturated())
+            .sum()
+            .alias("S"),
+        col("Triacylglycerol")
+            .filter(col("FattyAcid").fa().is_unsaturated())
+            .sum()
+            .alias("U"),
+    ]);
+    println!("lazy_frame g0: {}", lazy_frame.clone().collect().unwrap());
+    let s = lazy_frame.clone().collect()?["_Sum"]
+        .f64()?
+        .first()
+        .unwrap();
+    println!("lazy_frame g1: {}", lazy_frame.clone().collect().unwrap());
+
+    exit(0);
+    // // Cartesian product (TAG from FA)
+    // let mut tags = fatty_acids.cartesian_product()?;
+    // // Filter
+    // tags = tags.filter(settings);
+
+    // // let gunstone = Gunstone::new(s);
+    // let lazy_frame = key.fatty_acids.0.clone().lazy();
+    // // lazy_frame = lazy_frame.select([
+    // //     col("Label"),
+    // //     col("Formula"),
+    // //     col("TAG.Experimental"),
+    // //     col("DAG1223.Experimental"),
+    // //     col("MAG2.Experimental"),
+    // //     col("DAG13.DAG1223.Calculated"),
+    // //     col("DAG13.MAG2.Calculated"),
+    // // ]);
+    // // lazy_frame = lazy_frame.with_columns([s().alias("S"), u().alias("U")]);
+    // println!("key.data_frame: {}", lazy_frame.clone().collect().unwrap());
+    // lazy_frame.collect().unwrap()
 }
 
 // 1,3-sn 2-sn 1,2,3-sn
@@ -264,6 +273,14 @@ fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
 // `2*[a_{13}]` - потому что зеркальные ([abc]=[cba], [aab]=[baa]).
 // SSC: [abc] = [a_{13}]*[b_2]*[c_{13}]
 fn vander_wal(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFrame> {
+    lazy_frame = lazy_frame.select([
+        col("Index"),
+        col("Label"),
+        col("FattyAcid"),
+        col("Calculated")
+            .struct_()
+            .field_by_names(["Diacylglycerol13", "Monoacylglycerol2"]),
+    ]);
     // Cartesian product (TAG from FA)
     lazy_frame = cartesian_product(lazy_frame)?;
     // Compose
@@ -478,24 +495,6 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     lazy_frame
 }
 
-// fn filter_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
-//     if !settings.confirmed.show_filtered {
-//         let mut predicate = lit(true);
-//         for (index, group) in settings.confirmed.groups.iter().enumerate() {
-//             predicate = predicate.and(
-//                 col("Values")
-//                     .list()
-//                     .get(lit(index as u32), false)
-//                     .struct_()
-//                     .field_by_name("Mean")
-//                     .gt(lit(group.filter.value)),
-//             );
-//         }
-//         lazy_frame = lazy_frame.filter(predicate);
-//     }
-//     lazy_frame
-// }
-
 fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     let mut sort_options = SortMultipleOptions::default();
     if let Order::Descending = settings.confirmed.order {
@@ -523,26 +522,6 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
     // )]);
     lazy_frame
 }
-
-// fn sort_m(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
-//     let mut sort_options = SortMultipleOptions::default();
-//     if let Order::Descending = settings.confirmed.order {
-//         sort_options = sort_options
-//             .with_order_descending(true)
-//             .with_nulls_last(true);
-//     }
-//     let mut expr = col("Values");
-//     if settings.index.is_none() {
-//         expr = expr
-//             .list()
-//             .eval(col("").struct_().field_by_name("Mean"), true);
-//     }
-//     lazy_frame = match settings.confirmed.sort {
-//         Sort::Key => lazy_frame.sort_by_exprs([col("Keys")], sort_options),
-//         Sort::Value => lazy_frame.sort_by_exprs([expr], sort_options),
-//     };
-//     lazy_frame
-// }
 
 // /// Extension methods for [`DataFrame`]
 // trait DataFrameExt {

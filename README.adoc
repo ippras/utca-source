@@ -13,19 +13,7 @@ Ultimate Triacylglycerol Calculation Application
 |link:doc/en-US.adoc[English 🇺🇸] | link:doc/ru-RU.adoc[Русский 🇷🇺]
 |===
 
-== See Also
-
-* https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
-* https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
-
-== Dedication
-
-== TODO
-
 == Run
-
-[source]
-$Env:RUST_LOG="debug"
 
 === Native
 
@@ -47,3 +35,12 @@ integrity:
 * `Дополнительные`
 * `Изображения и другие файлы, сохраненные в кеше`
 * `Удалить данные`
+
+== See Also
+
+* https://byrdwell.com/Triacylglycerols/TAGbyMass1.htm[byrdwell.com]
+* https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl[nist.gov, title=Atomic Weights and Isotopic Compositions for All Elements]
+
+== Dedication
+
+== TODO

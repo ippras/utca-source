@@ -3,7 +3,7 @@ use crate::{
         panes::calculation::settings::{Fraction, From, Settings},
         presets::CHRISTIE,
     },
-    utils::polars::{ExprExt as _, LazyFrameExt as _},
+    utils::polars::ExprExt as _,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{
@@ -149,7 +149,7 @@ fn compute(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
 
 fn christie(lazy_frame: LazyFrame) -> LazyFrame {
     lazy_frame
-        .with_column_hash(col("FattyAcid"))
+        .with_column(col("FattyAcid").hash())
         .join(
             CHRISTIE.data.clone().lazy().select([
                 col("FattyAcid").hash(),
