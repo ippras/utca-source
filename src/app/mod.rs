@@ -37,6 +37,7 @@ use std::{
     time::Duration,
 };
 use tracing::{error, info, trace};
+use windows::SettingsWindow;
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
@@ -77,6 +78,8 @@ pub struct App {
     about: About,
     #[serde(skip)]
     github: Github,
+    settings: SettingsWindow,
+
     // Notifications
     #[serde(skip)]
     toasts: Toasts,
@@ -86,13 +89,14 @@ impl Default for App {
     fn default() -> Self {
         Self {
             left_panel: true,
-            tree: Tree::empty("central_tree"),
+            tree: Tree::empty("CentralTree"),
             data: Default::default(),
             data_channel: channel(),
             error_channel: channel(),
             toasts: Default::default(),
             about: Default::default(),
             github: Default::default(),
+            settings: SettingsWindow::default(),
         }
     }
 }
@@ -273,38 +277,45 @@ impl App {
                         }
                     }
                     ui.separator();
-                    ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(localize!("github token"));
-                            let id = Id::new("GithubToken");
-                            let mut github_token = ui.data_mut(|data| {
-                                data.get_persisted::<String>(id).unwrap_or_default()
-                            });
-                            if ui.text_edit_singleline(&mut github_token).changed() {
-                                ui.data_mut(|data| data.insert_persisted(id, github_token));
-                            }
-                            if ui.button(RichText::new(TRASH).heading()).clicked() {
-                                ui.data_mut(|data| data.remove::<String>(id));
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label(localize!("christie"));
-                            let pane = Pane::christie();
-                            let tile_id = self.tree.tiles.find_pane(&pane);
-                            let mut selected = tile_id.is_some();
-                            if ui
-                                .toggle_value(&mut selected, RichText::new(TABLE).heading())
-                                .on_hover_text("Christie")
-                                .clicked()
-                            {
-                                if selected {
-                                    self.tree.insert_pane::<VERTICAL>(pane);
-                                } else {
-                                    self.tree.tiles.remove(tile_id.unwrap());
-                                }
-                            }
-                        });
-                    });
+                    // ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
+                    //     ui.horizontal(|ui| {
+                    //         ui.label(localize!("github token"));
+                    //         let id = Id::new("GithubToken");
+                    //         let mut github_token = ui.data_mut(|data| {
+                    //             data.get_persisted::<String>(id).unwrap_or_default()
+                    //         });
+                    //         if ui.text_edit_singleline(&mut github_token).changed() {
+                    //             ui.data_mut(|data| data.insert_persisted(id, github_token));
+                    //         }
+                    //         if ui.button(RichText::new(TRASH).heading()).clicked() {
+                    //             ui.data_mut(|data| data.remove::<String>(id));
+                    //         }
+                    //     });
+                    //     ui.horizontal(|ui| {
+                    //         ui.label(localize!("christie"));
+                    //         let pane = Pane::christie();
+                    //         let tile_id = self.tree.tiles.find_pane(&pane);
+                    //         let mut selected = tile_id.is_some();
+                    //         if ui
+                    //             .toggle_value(&mut selected, RichText::new(TABLE).heading())
+                    //             .on_hover_text("Christie")
+                    //             .clicked()
+                    //         {
+                    //             if selected {
+                    //                 self.tree.insert_pane::<VERTICAL>(pane);
+                    //             } else {
+                    //                 self.tree.tiles.remove(tile_id.unwrap());
+                    //             }
+                    //         }
+                    //     });
+                    // });
+                    if ui
+                        .button(RichText::new(GEAR).size(ICON_SIZE))
+                        .on_hover_text(localize!("settings"))
+                        .clicked()
+                    {
+                        self.settings.open = !self.settings.open;
+                    }
                     ui.separator();
                     // Configuration
                     let frames = self.data.checked();
@@ -362,6 +373,7 @@ impl App {
     fn windows(&mut self, ctx: &Context) {
         self.about.window(ctx);
         self.github.window(ctx);
+        self.settings.show(ctx);
     }
 }
 
