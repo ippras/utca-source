@@ -1,11 +1,8 @@
+use crate::{app::identifiers::GITHUB_TOKEN, utils::egui::State};
 use constcat::concat;
-use egui::{
-    Align, Context, Id, Layout, Response, SelectableLabel, TextEdit, Ui, Widget, Window,
-    mutex::Mutex, util::undoer::Undoer,
-};
+use egui::{Context, Id, Response, SelectableLabel, TextEdit, Ui, Window};
 use egui_phosphor::regular::{EYE, GEAR};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 const ID_SOURCE: &str = "Settings";
 
@@ -28,7 +25,7 @@ impl SettingsWindow {
         Window::new(self.title())
             .open(&mut self.open)
             .resizable([true, false])
-            .show(ctx, settings);
+            .show(ctx, ui);
     }
 }
 
@@ -38,16 +35,19 @@ impl Default for SettingsWindow {
     }
 }
 
-fn settings(ui: &mut Ui) -> Response {
+fn ui(ui: &mut Ui) -> Response {
     let id_salt = Id::new(ID_SOURCE);
     let id = ui.make_persistent_id(id_salt);
     // Load
     let mut state = SettingsState::load(ui.ctx(), id).unwrap_or_default();
-    let mut show = ui.data_mut(|data| data.get_temp::<String>(id).unwrap_or(false));
+    let mut token = ui.data_mut(|data| {
+        data.get_persisted::<String>(*GITHUB_TOKEN)
+            .unwrap_or_default()
+    });
     let response = ui
         .horizontal(|ui| {
             ui.label("Token");
-            ui.add(TextEdit::singleline(&mut state.token).password(!state.password));
+            ui.add(TextEdit::singleline(&mut token).password(!state.password));
             let response = ui
                 .add(SelectableLabel::new(state.password, EYE))
                 .on_hover_text("Show/hide token");
@@ -58,17 +58,9 @@ fn settings(ui: &mut Ui) -> Response {
         })
         .inner;
     // Store
+    ui.data_mut(|data| data.insert_persisted(*GITHUB_TOKEN, token));
     state.store(ui.ctx(), id);
     response
-}
-
-/// State
-pub trait State: Sized {
-    fn load(ctx: &Context, id: Id) -> Option<Self>;
-
-    fn store(self, ctx: &Context, id: Id);
-
-    fn reset(ctx: &Context, id: Id);
 }
 
 /// Settings state
@@ -76,10 +68,6 @@ pub trait State: Sized {
 pub(crate) struct SettingsState {
     pub(crate) token: String,
     pub(crate) password: bool,
-
-    /// Wrapped in Arc for cheaper clones.
-    #[serde(skip)]
-    pub(crate) undoer: Arc<Mutex<SettingsUndoer>>,
 }
 
 impl State for SettingsState {
@@ -98,47 +86,30 @@ impl State for SettingsState {
     }
 }
 
-/// Settings undoer
-pub(crate) type SettingsUndoer = Undoer<(String, bool)>;
+// pub fn password(password: &mut String) -> impl Widget {
+//     move |ui: &mut Ui| {
+//         let id_salt = Id::new(ID_SOURCE).with("Token");
+//         let id = ui.make_persistent_id(id_salt);
+//         let mut show = ui.data_mut(|data| data.get_temp::<bool>(id).unwrap_or(false));
+//         let response = ui
+//             .with_layout(Layout::right_to_left(Align::Center), |ui| {
+//                 let response = ui
+//                     .add(SelectableLabel::new(show, "👁"))
+//                     .on_hover_text("Show/hide token");
+//                 if response.clicked() {
+//                     show = !show;
+//                 }
+//                 ui.add_sized(
+//                     ui.available_size(),
+//                     TextEdit::singleline(password).password(!show),
+//                 );
+//             })
+//             .response;
+//         ui.data_mut(|data| data.insert_temp(id, show));
+//         response
+//     }
+// }
 
-impl SettingsState {
-    // pub(crate) fn undoer(&self) -> SettingsUndoer {
-    //     self.undoer.lock().clone()
-    // }
-
-    // #[allow(clippy::needless_pass_by_ref_mut)] // Intentionally hide interiority of mutability
-    // pub(crate) fn set_undoer(&mut self, undoer: SettingsUndoer) {
-    //     *self.undoer.lock() = undoer;
-    // }
-
-    // pub(crate) fn clear_undoer(&mut self) {
-    //     self.set_undoer(SettingsUndoer::default());
-    // }
-}
-
-pub fn password(password: &mut String) -> impl Widget {
-    move |ui: &mut Ui| {
-        let id_salt = Id::new(ID_SOURCE).with("Token");
-        let id = ui.make_persistent_id(id_salt);
-        let mut show = ui.data_mut(|data| data.get_temp::<bool>(id).unwrap_or(false));
-        let response = ui
-            .with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let response = ui
-                    .add(SelectableLabel::new(show, "👁"))
-                    .on_hover_text("Show/hide token");
-                if response.clicked() {
-                    show = !show;
-                }
-                ui.add_sized(
-                    ui.available_size(),
-                    TextEdit::singleline(password).password(!show),
-                );
-            })
-            .response;
-        ui.data_mut(|data| data.insert_temp(id, show));
-        response
-    }
-}
 // pub fn password(password: &mut String) -> impl Widget {
 //     move |ui: &mut Ui| {
 //         let id_salt = Id::new(ID_SOURCE).with("Token");

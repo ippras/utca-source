@@ -1,7 +1,8 @@
 use self::{
     data::Data,
+    identifiers::{DATA, ERROR, GITHUB_TOKEN},
     panes::{Pane, behavior::Behavior, configuration::Pane as ConfigurationPane},
-    windows::{About, Github},
+    windows::{About, GithubWindow},
 };
 use crate::{localization::UiExt, localize};
 use anyhow::Error;
@@ -76,8 +77,7 @@ pub struct App {
     // Windows
     #[serde(skip)]
     about: About,
-    #[serde(skip)]
-    github: Github,
+    github: GithubWindow,
     settings: SettingsWindow,
 
     // Notifications
@@ -127,9 +127,9 @@ impl App {
     fn context(&self, ctx: &Context) {
         ctx.data_mut(|data| {
             // Data channel
-            data.insert_temp(Id::new("Data"), self.data_channel.0.clone());
+            data.insert_temp(*DATA, self.data_channel.0.clone());
             // Error channel
-            data.insert_temp(Id::new("Error"), self.error_channel.0.clone());
+            data.insert_temp(*ERROR, self.error_channel.0.clone());
         });
     }
 }
@@ -179,7 +179,7 @@ impl App {
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
-                    ui.add(&mut self.data);
+                    self.data.show(ui);
                 });
             });
     }
@@ -218,9 +218,10 @@ impl App {
                         let mut data = IdTypeMap::default();
                         let caches = ui.memory_mut(|memory| {
                             // Github token
-                            let id = Id::new("GithubToken");
-                            if let Some(github_token) = memory.data.get_persisted::<String>(id) {
-                                data.insert_persisted(id, github_token)
+                            if let Some(github_token) =
+                                memory.data.get_persisted::<String>(*GITHUB_TOKEN)
+                            {
+                                data.insert_persisted(*GITHUB_TOKEN, github_token)
                             }
                             // Cache
                             memory.caches.clone()
@@ -349,6 +350,8 @@ impl App {
                     {
                         self.github.toggle(ui);
                     }
+                    ui.separator();
+
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // About
                         if ui
@@ -361,6 +364,7 @@ impl App {
                         ui.separator();
                         // Locale
                         ui.locale_button().on_hover_text(localize!("language"));
+                        ui.separator();
                     });
                 });
             });
@@ -371,8 +375,8 @@ impl App {
 // Windows
 impl App {
     fn windows(&mut self, ctx: &Context) {
-        self.about.window(ctx);
-        self.github.window(ctx);
+        self.about.show(ctx);
+        self.github.show(ctx);
         self.settings.show(ctx);
     }
 }
@@ -586,8 +590,7 @@ impl ContextExt for Context {
     fn error(&self, error: impl Into<Error>) {
         let error = error.into();
         error!(%error);
-        let id = Id::new("Error");
-        if let Some(sender) = self.data_mut(|data| data.get_temp::<Sender<Error>>(id)) {
+        if let Some(sender) = self.data_mut(|data| data.get_temp::<Sender<Error>>(*ERROR)) {
             sender.send(error).ok();
         }
     }
@@ -606,6 +609,7 @@ impl<T, E: Into<Error>> ResultExt<T, E> for Result<T, E> {
 
 mod computers;
 mod data;
+mod identifiers;
 mod panes;
 mod presets;
 mod text;

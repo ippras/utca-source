@@ -180,7 +180,7 @@ impl Pane {
     fn body_content_meta(&mut self, ui: &mut Ui, index: usize) {
         ui.style_mut().visuals.collapsing_header_frame = true;
         ui.collapsing(RichText::new(format!("{TAG} Metadata")).heading(), |ui| {
-            let height = ui.style().spacing.interact_size.y;
+            let height = ui.spacing().interact_size.y;
             let meta = &mut self.frames[index].meta;
             TableBuilder::new(ui)
                 .column(Column::auto())
