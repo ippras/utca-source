@@ -28,7 +28,6 @@ pub(super) struct TableView<'a> {
     data_frame: &'a mut DataFrame,
     settings: &'a Settings,
     state: &'a mut State,
-    // event: Option<Event>,
 }
 
 impl<'a> TableView<'a> {
@@ -41,7 +40,6 @@ impl<'a> TableView<'a> {
             data_frame,
             settings,
             state,
-            // event: None,
         }
     }
 }

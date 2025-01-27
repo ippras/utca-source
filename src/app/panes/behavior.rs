@@ -30,7 +30,7 @@ impl egui_tiles::Behavior<Pane> for Behavior {
                         },
                     )
                     .0;
-                pane.content(ui);
+                pane.body(ui);
                 if response.dragged() {
                     UiResponse::DragStarted
                 } else {

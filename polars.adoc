@@ -29,6 +29,16 @@ let data_frame = data_frame
     .slice(0, row_index)
     .vstack(&data_frame.slice(row_index + 1, usize::MAX))?;
 
+[source, rust]
+pub(crate) fn delete_row(&mut self, row: usize) -> PolarsResult<()> {
+    self.data_frame = self
+        .data_frame
+        .slice(0, row)
+        .vstack(&self.data_frame.slice((row + 1) as _, usize::MAX))?;
+    self.data_frame.as_single_chunk_par();
+    Ok(())
+}
+
 * <https://stackoverflow.com/questions/71486019/how-to-drop-row-in-polars-python>
 * <https://stackoverflow.com/a/71495211/1522758>
 

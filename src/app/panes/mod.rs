@@ -54,7 +54,7 @@ impl Pane {
         }
     }
 
-    fn content(&mut self, ui: &mut Ui) {
+    fn body(&mut self, ui: &mut Ui) {
         match self {
             Self::Configuration(pane) => pane.body(ui),
             Self::Calculation(pane) => pane.body(ui),
