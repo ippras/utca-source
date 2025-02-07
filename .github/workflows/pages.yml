@@ -22,10 +22,9 @@ jobs:
     - name: Cache rust # cache the rust build artefacts
       uses: Swatinem/rust-cache@v2
     - name: Download and install trunk
-      # uses: jetli/trunk-action@v0.5.0
       run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
     - name: Build
-      run: ./trunk build --release --public-url=$public_url
+      run: ./trunk build --release --filehash=false --public-url=$public_url
       env:
         public_url: "https://${{ github.repository_owner }}.github.io/utca"
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
