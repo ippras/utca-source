@@ -6,18 +6,13 @@ use crate::{
     utils::save,
 };
 use anyhow::Result;
-use egui::{
-    CursorIcon, DragValue, Grid, Id, Response, RichText, ScrollArea, Ui, Window, menu::bar,
-    util::hash,
-};
-use egui_extras::{Column, DatePickerButton, TableBuilder};
+use egui::{CursorIcon, Id, Response, RichText, Ui, Window, util::hash};
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL,
     PENCIL, TAG, TRASH,
 };
 use metadata::MetaDataFrame;
 use polars::prelude::*;
-use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
@@ -262,15 +257,7 @@ impl Pane {
 
 impl PaneDelegate for Pane {
     fn header(&mut self, ui: &mut Ui) -> Response {
-        bar(ui, |ui| {
-            ScrollArea::horizontal()
-                .show(ui, |ui| {
-                    ui.visuals_mut().button_frame = false;
-                    self.header_content(ui)
-                })
-                .inner
-        })
-        .inner
+        self.header_content(ui)
     }
 
     fn body(&mut self, ui: &mut Ui) {

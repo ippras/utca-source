@@ -219,8 +219,6 @@ impl TableView<'_> {
 
 impl TableDelegate for TableView<'_> {
     fn header_cell_ui(&mut self, ui: &mut Ui, cell: &HeaderCellInfo) {
-        ui.painter()
-            .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
         Frame::new()
             .inner_margin(Margin::from(MARGIN))
             .show(ui, |ui| {
@@ -229,7 +227,7 @@ impl TableDelegate for TableView<'_> {
     }
 
     fn cell_ui(&mut self, ui: &mut Ui, cell: &CellInfo) {
-        if cell.row_nr % 2 == 1 {
+        if cell.row_nr % 2 == 0 {
             ui.painter()
                 .rect_filled(ui.max_rect(), 0.0, ui.visuals().faint_bg_color);
         }
@@ -249,13 +247,6 @@ impl TableDelegate for TableView<'_> {
         row_nr as f32 * (ctx.style().spacing.interact_size.y + 2.0 * MARGIN.y)
     }
 }
-
-// /// Event
-// #[derive(Clone, Copy, Debug)]
-// pub(super) enum Event {
-//     AddRow,
-//     DeleteRow(usize),
-// }
 
 fn change_label(row: usize, new: &str) -> impl FnMut(&Series) -> PolarsResult<Series> {
     move |series| {

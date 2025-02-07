@@ -1,5 +1,5 @@
 use crate::localize;
-use egui::{Grid, Label, Response, RichText, Sides, Ui, Widget, menu::bar};
+use egui::{Frame, Grid, Label, Response, RichText, Sides, Ui, Widget, menu::bar};
 use egui_dnd::dnd;
 use egui_extras::{Column, TableBuilder};
 use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, CHECK, TRASH};
@@ -67,42 +67,46 @@ impl Data {
         // Body
         ui.separator();
         let mut delete = None;
-        TableBuilder::new(ui)
-            .column(Column::auto().resizable(true))
-            .column(Column::remainder())
-            .body(|mut body| {
-                body.rows(row_height_sans_spacing, total_rows, add_row_content);
-                let ui = body.ui_mut();
-                dnd(ui, ui.next_auto_id()).show_vec(&mut self.frames, |ui, frame, handle, state| {
-                    ui.horizontal(|ui| {
-                        Sides::new().show(
-                            ui,
-                            |ui| {
-                                handle.ui(ui, |ui| {
-                                    let _ = ui.label(ARROWS_OUT_CARDINAL);
-                                });
-                                ui.checkbox(&mut self.checked[state.index], "");
-                                let text = if let Some(version) = &frame.meta.version {
-                                    &format!("{} {version}", frame.meta.name)
-                                } else {
-                                    &frame.meta.name
-                                };
-                                ui.add(Label::new(text).truncate()).on_hover_ui(|ui| {
-                                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                                        ui.label("Rows");
-                                        ui.label(frame.data.height().to_string());
-                                    });
-                                });
-                            },
-                            |ui| {
-                                if ui.button(TRASH).clicked() {
-                                    delete = Some(state.index);
-                                }
-                            },
-                        );
-                    });
+        ui.dnd_drop_zone::<usize, ()>(Frame::default(), |ui| {
+            TableBuilder::new(ui)
+                .column(Column::auto().resizable(true))
+                .column(Column::remainder())
+                .body(|mut body| {
+                    let ui = body.ui_mut();
+                    dnd(ui, ui.next_auto_id()).show_vec(
+                        &mut self.frames,
+                        |ui, frame, handle, state| {
+                            ui.horizontal(|ui| {
+                                Sides::new().show(
+                                    ui,
+                                    |ui| {
+                                        handle.ui(ui, |ui| {
+                                            let _ = ui.label(ARROWS_OUT_CARDINAL);
+                                        });
+                                        ui.checkbox(&mut self.checked[state.index], "");
+                                        let text = if let Some(version) = &frame.meta.version {
+                                            &format!("{} {version}", frame.meta.name)
+                                        } else {
+                                            &frame.meta.name
+                                        };
+                                        ui.add(Label::new(text).truncate()).on_hover_ui(|ui| {
+                                            Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                                                ui.label("Rows");
+                                                ui.label(frame.data.height().to_string());
+                                            });
+                                        });
+                                    },
+                                    |ui| {
+                                        if ui.button(TRASH).clicked() {
+                                            delete = Some(state.index);
+                                        }
+                                    },
+                                );
+                            });
+                        },
+                    );
                 });
-            });
+        });
         // dnd(ui, ui.next_auto_id()).show_vec(&mut self.frames, |ui, frame, handle, state| {
         //     ui.horizontal(|ui| {
         //         Sides::new().show(

@@ -8,9 +8,7 @@ use crate::{
     },
     localize,
 };
-use egui::{
-    CursorIcon, Grid, Id, Response, RichText, ScrollArea, Ui, Window, menu::bar, util::hash,
-};
+use egui::{CursorIcon, Grid, Id, Response, RichText, ScrollArea, Ui, Window, util::hash};
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, GEAR, INTERSECT_THREE, LIST, MATH_OPERATIONS,
 };
@@ -188,15 +186,7 @@ impl Pane {
 
 impl PaneDelegate for Pane {
     fn header(&mut self, ui: &mut Ui) -> Response {
-        bar(ui, |ui| {
-            ScrollArea::horizontal()
-                .show(ui, |ui| {
-                    ui.visuals_mut().button_frame = false;
-                    self.header_content(ui)
-                })
-                .inner
-        })
-        .inner
+        self.header_content(ui)
     }
 
     fn body(&mut self, ui: &mut Ui) {

@@ -162,13 +162,15 @@ impl App {
 
     // Central panel
     fn central_panel(&mut self, ctx: &Context) {
-        CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
-            let mut behavior = Behavior { close: None };
-            self.tree.ui(&mut behavior, ui);
-            if let Some(id) = behavior.close {
-                self.tree.tiles.remove(id);
-            }
-        });
+        CentralPanel::default()
+            .frame(Frame::central_panel(&ctx.style()).inner_margin(0))
+            .show(ctx, |ui| {
+                let mut behavior = Behavior { close: None };
+                self.tree.ui(&mut behavior, ui);
+                if let Some(id) = behavior.close {
+                    self.tree.tiles.remove(id);
+                }
+            });
     }
 
     // Left panel
