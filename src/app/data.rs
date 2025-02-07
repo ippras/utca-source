@@ -1,7 +1,8 @@
 use crate::localize;
-use egui::{Grid, Label, Response, Sides, Ui, Widget};
+use egui::{Grid, Label, Response, RichText, Sides, Ui, Widget, menu::bar};
 use egui_dnd::dnd;
-use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, TRASH};
+use egui_extras::{Column, TableBuilder};
+use egui_phosphor::regular::{ARROWS_OUT_CARDINAL, CHECK, TRASH};
 use metadata::MetaDataFrame;
 use serde::{Deserialize, Serialize};
 use std::iter::zip;
@@ -36,43 +37,104 @@ impl Data {
     }
 }
 
-impl Widget for &mut Data {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let response = ui.heading(localize!("files"));
-        let mut remove = None;
-        dnd(ui, ui.next_auto_id()).show_vec(&mut self.frames, |ui, frame, handle, state| {
-            ui.horizontal(|ui| {
-                Sides::new().show(
-                    ui,
-                    |ui| {
-                        handle.ui(ui, |ui| {
-                            let _ = ui.label(ARROWS_OUT_CARDINAL);
-                        });
-                        ui.checkbox(&mut self.checked[state.index], "");
-                        let text = if let Some(version) = &frame.meta.version {
-                            &format!("{} {version}", frame.meta.name)
-                        } else {
-                            &frame.meta.name
-                        };
-                        ui.add(Label::new(text).truncate()).on_hover_ui(|ui| {
-                            Grid::new(ui.next_auto_id()).show(ui, |ui| {
-                                ui.label("Rows");
-                                ui.label(frame.data.height().to_string());
-                            });
-                        });
-                    },
-                    |ui| {
-                        if ui.button(TRASH).clicked() {
-                            remove = Some(state.index);
-                        }
-                    },
-                );
-            });
+impl Data {
+    pub(crate) fn show(&mut self, ui: &mut Ui) {
+        // Header
+        bar(ui, |ui| {
+            ui.heading(localize!("files"));
+            ui.separator();
+            // Check all
+            if ui
+                .button(RichText::new(CHECK).heading())
+                .on_hover_text(localize!("check-all"))
+                .clicked()
+            {
+                if let Some(&checked) = self.checked.get(0) {
+                    self.checked = vec![!checked; self.checked.len()];
+                }
+            }
+            ui.separator();
+            // Delete all
+            if ui
+                .button(RichText::new(TRASH).heading())
+                .on_hover_text(localize!("delete-all"))
+                .clicked()
+            {
+                *self = Default::default();
+            }
+            ui.separator();
         });
-        if let Some(index) = remove {
+        // Body
+        ui.separator();
+        let mut delete = None;
+        TableBuilder::new(ui)
+            .column(Column::auto().resizable(true))
+            .column(Column::remainder())
+            .body(|mut body| {
+                body.rows(row_height_sans_spacing, total_rows, add_row_content);
+                let ui = body.ui_mut();
+                dnd(ui, ui.next_auto_id()).show_vec(&mut self.frames, |ui, frame, handle, state| {
+                    ui.horizontal(|ui| {
+                        Sides::new().show(
+                            ui,
+                            |ui| {
+                                handle.ui(ui, |ui| {
+                                    let _ = ui.label(ARROWS_OUT_CARDINAL);
+                                });
+                                ui.checkbox(&mut self.checked[state.index], "");
+                                let text = if let Some(version) = &frame.meta.version {
+                                    &format!("{} {version}", frame.meta.name)
+                                } else {
+                                    &frame.meta.name
+                                };
+                                ui.add(Label::new(text).truncate()).on_hover_ui(|ui| {
+                                    Grid::new(ui.next_auto_id()).show(ui, |ui| {
+                                        ui.label("Rows");
+                                        ui.label(frame.data.height().to_string());
+                                    });
+                                });
+                            },
+                            |ui| {
+                                if ui.button(TRASH).clicked() {
+                                    delete = Some(state.index);
+                                }
+                            },
+                        );
+                    });
+                });
+            });
+        // dnd(ui, ui.next_auto_id()).show_vec(&mut self.frames, |ui, frame, handle, state| {
+        //     ui.horizontal(|ui| {
+        //         Sides::new().show(
+        //             ui,
+        //             |ui| {
+        //                 handle.ui(ui, |ui| {
+        //                     let _ = ui.label(ARROWS_OUT_CARDINAL);
+        //                 });
+        //                 ui.checkbox(&mut self.checked[state.index], "");
+        //                 let text = if let Some(version) = &frame.meta.version {
+        //                     &format!("{} {version}", frame.meta.name)
+        //                 } else {
+        //                     &frame.meta.name
+        //                 };
+        //                 ui.add(Label::new(text).truncate()).on_hover_ui(|ui| {
+        //                     Grid::new(ui.next_auto_id()).show(ui, |ui| {
+        //                         ui.label("Rows");
+        //                         ui.label(frame.data.height().to_string());
+        //                     });
+        //                 });
+        //             },
+        //             |ui| {
+        //                 if ui.button(TRASH).clicked() {
+        //                     delete = Some(state.index);
+        //                 }
+        //             },
+        //         );
+        //     });
+        // });
+        if let Some(index) = delete {
             self.delete(index);
             ui.ctx().request_repaint();
         }
-        response
     }
 }

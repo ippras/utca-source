@@ -63,7 +63,7 @@ impl<'a> FloatWidget<'a> {
         let mut response = if self.settings.editable {
             // Writable
             let response = ui.add_sized(
-                vec2(ui.available_width(), ui.style().spacing.interact_size.y),
+                vec2(ui.available_width(), ui.spacing().interact_size.y),
                 DragValue::new(&mut value)
                     .range(0.0..=f64::MAX)
                     .custom_formatter(|value, _| format(value)),

@@ -53,10 +53,10 @@ impl FattyAcidWidget<'_> {
         let mut response = if self.editable {
             // Writable
             ui.add_sized(
-                vec2(ui.available_width(), ui.style().spacing.interact_size.y),
+                vec2(ui.available_width(), ui.spacing().interact_size.y),
                 |ui: &mut Ui| {
                     ui.menu_button(text, |ui| {
-                        let widgets = if ui.style().visuals.dark_mode {
+                        let widgets = if ui.visuals().dark_mode {
                             Widgets::dark()
                         } else {
                             Widgets::light()

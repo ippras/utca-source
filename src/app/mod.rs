@@ -1,15 +1,16 @@
 use self::{
     data::Data,
+    identifiers::{DATA, ERROR, GITHUB_TOKEN},
     panes::{Pane, behavior::Behavior, configuration::Pane as ConfigurationPane},
-    windows::{About, Github},
+    windows::{About, GithubWindow},
 };
 use crate::{localization::UiExt, localize};
 use anyhow::Error;
 use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, FontSelection, Id, LayerId,
-    Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, FontSelection, Frame, Id,
+    LayerId, Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel,
     UserAttentionType, ViewportCommand, Visuals, menu::bar, text::LayoutJob, util::IdTypeMap,
     warn_if_debug_build,
 };
@@ -37,6 +38,7 @@ use std::{
     time::Duration,
 };
 use tracing::{error, info, trace};
+use windows::SettingsWindow;
 
 /// IEEE 754-2008
 const MAX_PRECISION: usize = 16;
@@ -75,8 +77,9 @@ pub struct App {
     // Windows
     #[serde(skip)]
     about: About,
-    #[serde(skip)]
-    github: Github,
+    github: GithubWindow,
+    settings: SettingsWindow,
+
     // Notifications
     #[serde(skip)]
     toasts: Toasts,
@@ -86,13 +89,14 @@ impl Default for App {
     fn default() -> Self {
         Self {
             left_panel: true,
-            tree: Tree::empty("central_tree"),
+            tree: Tree::empty("CentralTree"),
             data: Default::default(),
             data_channel: channel(),
             error_channel: channel(),
             toasts: Default::default(),
             about: Default::default(),
             github: Default::default(),
+            settings: SettingsWindow::default(),
         }
     }
 }
@@ -123,9 +127,9 @@ impl App {
     fn context(&self, ctx: &Context) {
         ctx.data_mut(|data| {
             // Data channel
-            data.insert_temp(Id::new("Data"), self.data_channel.0.clone());
+            data.insert_temp(*DATA, self.data_channel.0.clone());
             // Error channel
-            data.insert_temp(Id::new("Error"), self.error_channel.0.clone());
+            data.insert_temp(*ERROR, self.error_channel.0.clone());
         });
     }
 }
@@ -158,15 +162,13 @@ impl App {
 
     // Central panel
     fn central_panel(&mut self, ctx: &Context) {
-        CentralPanel::default()
-            .frame(egui::Frame::central_panel(&ctx.style()).inner_margin(0.0))
-            .show(ctx, |ui| {
-                let mut behavior = Behavior { close: None };
-                self.tree.ui(&mut behavior, ui);
-                if let Some(id) = behavior.close {
-                    self.tree.tiles.remove(id);
-                }
-            });
+        CentralPanel::default().frame(Frame::new()).show(ctx, |ui| {
+            let mut behavior = Behavior { close: None };
+            self.tree.ui(&mut behavior, ui);
+            if let Some(id) = behavior.close {
+                self.tree.tiles.remove(id);
+            }
+        });
     }
 
     // Left panel
@@ -175,7 +177,7 @@ impl App {
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
-                    ui.add(&mut self.data);
+                    self.data.show(ui);
                 });
             });
     }
@@ -214,9 +216,10 @@ impl App {
                         let mut data = IdTypeMap::default();
                         let caches = ui.memory_mut(|memory| {
                             // Github token
-                            let id = Id::new("GithubToken");
-                            if let Some(github_token) = memory.data.get_persisted::<String>(id) {
-                                data.insert_persisted(id, github_token)
+                            if let Some(github_token) =
+                                memory.data.get_persisted::<String>(*GITHUB_TOKEN)
+                            {
+                                data.insert_persisted(*GITHUB_TOKEN, github_token)
                             }
                             // Cache
                             memory.caches.clone()
@@ -273,38 +276,45 @@ impl App {
                         }
                     }
                     ui.separator();
-                    ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
-                        ui.horizontal(|ui| {
-                            ui.label(localize!("github token"));
-                            let id = Id::new("GithubToken");
-                            let mut github_token = ui.data_mut(|data| {
-                                data.get_persisted::<String>(id).unwrap_or_default()
-                            });
-                            if ui.text_edit_singleline(&mut github_token).changed() {
-                                ui.data_mut(|data| data.insert_persisted(id, github_token));
-                            }
-                            if ui.button(RichText::new(TRASH).heading()).clicked() {
-                                ui.data_mut(|data| data.remove::<String>(id));
-                            }
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label(localize!("christie"));
-                            let pane = Pane::christie();
-                            let tile_id = self.tree.tiles.find_pane(&pane);
-                            let mut selected = tile_id.is_some();
-                            if ui
-                                .toggle_value(&mut selected, RichText::new(TABLE).heading())
-                                .on_hover_text("Christie")
-                                .clicked()
-                            {
-                                if selected {
-                                    self.tree.insert_pane::<VERTICAL>(pane);
-                                } else {
-                                    self.tree.tiles.remove(tile_id.unwrap());
-                                }
-                            }
-                        });
-                    });
+                    // ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
+                    //     ui.horizontal(|ui| {
+                    //         ui.label(localize!("github token"));
+                    //         let id = Id::new("GithubToken");
+                    //         let mut github_token = ui.data_mut(|data| {
+                    //             data.get_persisted::<String>(id).unwrap_or_default()
+                    //         });
+                    //         if ui.text_edit_singleline(&mut github_token).changed() {
+                    //             ui.data_mut(|data| data.insert_persisted(id, github_token));
+                    //         }
+                    //         if ui.button(RichText::new(TRASH).heading()).clicked() {
+                    //             ui.data_mut(|data| data.remove::<String>(id));
+                    //         }
+                    //     });
+                    //     ui.horizontal(|ui| {
+                    //         ui.label(localize!("christie"));
+                    //         let pane = Pane::christie();
+                    //         let tile_id = self.tree.tiles.find_pane(&pane);
+                    //         let mut selected = tile_id.is_some();
+                    //         if ui
+                    //             .toggle_value(&mut selected, RichText::new(TABLE).heading())
+                    //             .on_hover_text("Christie")
+                    //             .clicked()
+                    //         {
+                    //             if selected {
+                    //                 self.tree.insert_pane::<VERTICAL>(pane);
+                    //             } else {
+                    //                 self.tree.tiles.remove(tile_id.unwrap());
+                    //             }
+                    //         }
+                    //     });
+                    // });
+                    if ui
+                        .button(RichText::new(GEAR).size(ICON_SIZE))
+                        .on_hover_text(localize!("settings"))
+                        .clicked()
+                    {
+                        self.settings.open = !self.settings.open;
+                    }
                     ui.separator();
                     // Configuration
                     let frames = self.data.checked();
@@ -338,6 +348,8 @@ impl App {
                     {
                         self.github.toggle(ui);
                     }
+                    ui.separator();
+
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         // About
                         if ui
@@ -350,6 +362,7 @@ impl App {
                         ui.separator();
                         // Locale
                         ui.locale_button().on_hover_text(localize!("language"));
+                        ui.separator();
                     });
                 });
             });
@@ -360,8 +373,9 @@ impl App {
 // Windows
 impl App {
     fn windows(&mut self, ctx: &Context) {
-        self.about.window(ctx);
-        self.github.window(ctx);
+        self.about.show(ctx);
+        self.github.show(ctx);
+        self.settings.show(ctx);
     }
 }
 
@@ -574,8 +588,7 @@ impl ContextExt for Context {
     fn error(&self, error: impl Into<Error>) {
         let error = error.into();
         error!(%error);
-        let id = Id::new("Error");
-        if let Some(sender) = self.data_mut(|data| data.get_temp::<Sender<Error>>(id)) {
+        if let Some(sender) = self.data_mut(|data| data.get_temp::<Sender<Error>>(*ERROR)) {
             sender.send(error).ok();
         }
     }
@@ -594,6 +607,7 @@ impl<T, E: Into<Error>> ResultExt<T, E> for Result<T, E> {
 
 mod computers;
 mod data;
+mod identifiers;
 mod panes;
 mod presets;
 mod text;

@@ -1,4 +1,8 @@
-use crate::{localize, utils::spawn};
+use crate::{
+    app::identifiers::{DATA, GITHUB_TOKEN as ID},
+    localize,
+    utils::spawn,
+};
 use anyhow::{Error, Result};
 use base64::prelude::*;
 use egui::{
@@ -30,22 +34,20 @@ use url::Url;
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages?recursive=true
 // https://api.github.com/repos/ippras/utca/git/trees/gh-pages/configs?recursive=true
 
+const ENVIRONMENT: Option<&str> = option_env!("GITHUB_TOKEN");
 const URL: &str = "https://api.github.com/repos/ippras/utca-configs/git/trees/main?recursive=true";
-const GITHUB_TOKEN: Option<&str> = option_env!("GITHUB_TOKEN");
 
+/// Github window
+///
 /// `github.com tree` renders a nested list of debugger values.
-pub struct Github {
+#[derive(Deserialize, Serialize)]
+pub struct GithubWindow {
     pub open: bool,
+    #[serde(skip, default = "promise_none")]
     promise: Promise<Option<Tree>>,
 }
 
-impl Default for Github {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Github {
+impl GithubWindow {
     pub fn new() -> Self {
         Self {
             open: false,
@@ -56,14 +58,13 @@ impl Github {
     pub fn toggle(&mut self, ui: &Ui) {
         self.open ^= true;
         self.promise = if self.open {
-            let mut github_token =
-                ui.data_mut(|data| data.get_persisted::<String>(Id::new("GithubToken")));
-            github_token = github_token.or(GITHUB_TOKEN.map(ToOwned::to_owned));
+            let mut github_token = ui.data_mut(|data| data.get_persisted::<String>(*ID));
+            github_token = github_token.or(ENVIRONMENT.map(ToOwned::to_owned));
             let Some(github_token) = github_token else {
                 warn!("GITHUB_TOKEN not found");
                 return;
             };
-            load_tree(&github_token, URL)
+            load_tree(URL, &github_token)
         } else {
             Promise::from_ready(None)
         };
@@ -88,7 +89,7 @@ impl Github {
     //         });
     // }
 
-    pub fn window(&mut self, ctx: &Context) {
+    pub fn show(&mut self, ctx: &Context) {
         Window::new(format!("{CLOUD_ARROW_DOWN} Load config"))
             .open(&mut self.open)
             .show(ctx, |ui| {
@@ -112,7 +113,7 @@ impl Github {
                             // }
                             trie.insert(&*node.path, &*node.url);
                         }
-                        ui_children(ui, trie.children());
+                        show_children(ui, trie.children());
                     } else {
                         ui.spinner();
                     }
@@ -121,7 +122,17 @@ impl Github {
     }
 }
 
-fn ui_children(ui: &mut Ui, children: Children<'_, &str, &str>) {
+impl Default for GithubWindow {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn promise_none() -> Promise<Option<Tree>> {
+    Promise::from_ready(None)
+}
+
+fn show_children(ui: &mut Ui, children: Children<'_, &str, &str>) {
     for trie in children.sorted_by_cached_key(|trie| trie.is_leaf()) {
         if let Some(&path) = trie.key() {
             let name = path.rsplit_once('/').map_or(path, |(_, suffix)| suffix);
@@ -136,20 +147,20 @@ fn ui_children(ui: &mut Ui, children: Children<'_, &str, &str>) {
                 }
             } else {
                 ui.collapsing(RichText::new(name).heading(), |ui| {
-                    ui_children(ui, trie.children());
+                    show_children(ui, trie.children());
                 });
             }
         } else {
-            ui_children(ui, trie.children());
+            show_children(ui, trie.children());
         }
     }
 }
 
-fn load_tree(github_token: impl ToString, url: impl ToString) -> Promise<Option<Tree>> {
+fn load_tree(url: impl ToString, github_token: impl ToString) -> Promise<Option<Tree>> {
     let url = url.to_string();
     let github_token = github_token.to_string();
     spawn(async {
-        match try_load_tree(github_token, url).await {
+        match try_load_tree(url, github_token).await {
             Ok(tree) => Some(tree),
             Err(error) => {
                 error!(%error);
@@ -185,7 +196,7 @@ fn load_blob(ctx: &Context, url: impl ToString) {
     let _ = spawn(async move {
         match try_load_blob(url).await {
             Ok(blob) => ctx.data_mut(|data| {
-                if let Some(sender) = data.get_temp::<Sender<Vec<u8>>>(Id::new("Data")) {
+                if let Some(sender) = data.get_temp::<Sender<Vec<u8>>>(*DATA) {
                     sender.send(blob).ok();
                 }
             }),
@@ -194,7 +205,7 @@ fn load_blob(ctx: &Context, url: impl ToString) {
     });
 }
 
-async fn try_load_tree(github_token: impl Display, url: impl ToString) -> Result<Tree> {
+async fn try_load_tree(url: impl ToString, github_token: impl Display) -> Result<Tree> {
     let request = Request {
         headers: Headers::new(&[
             ("Accept", "application/vnd.github+json"),
