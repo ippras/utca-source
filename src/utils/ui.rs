@@ -40,20 +40,28 @@ impl UiExt for Ui {
             }
         });
         let font_id = format.font_id.unwrap_or_default();
-        layout_job.append(text, 0.0, TextFormat {
-            color,
-            font_id,
-            ..Default::default()
-        });
+        layout_job.append(
+            text,
+            0.0,
+            TextFormat {
+                color,
+                font_id,
+                ..Default::default()
+            },
+        );
         let font_id = format
             .small_font_id
             .unwrap_or_else(|| TextStyle::Small.resolve(self.style()));
-        layout_job.append(subscription, 1.0, TextFormat {
-            color,
-            font_id,
-            valign: Align::BOTTOM,
-            ..Default::default()
-        });
+        layout_job.append(
+            subscription,
+            1.0,
+            TextFormat {
+                color,
+                font_id,
+                valign: Align::BOTTOM,
+                ..Default::default()
+            },
+        );
         layout_job
     }
 }

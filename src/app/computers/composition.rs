@@ -1,12 +1,12 @@
 use crate::{
     app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
-    utils::polars::{ExprExt as _, column, round},
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{fatty_acid::Kind, prelude::*};
 use metadata::MetaDataFrame;
 use polars::prelude::*;
+use polars_ext::{ExprExt as _, column, functions::round};
 use std::{
     convert::identity,
     hash::{Hash, Hasher},

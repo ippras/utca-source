@@ -1,9 +1,6 @@
-use crate::{
-    app::{
-        panes::calculation::settings::{Fraction, From, Settings},
-        presets::CHRISTIE,
-    },
-    utils::polars::ExprExt as _,
+use crate::app::{
+    panes::calculation::settings::{Fraction, From, Settings},
+    presets::CHRISTIE,
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{
@@ -15,6 +12,7 @@ use lipid::{
 };
 use metadata::MetaDataFrame;
 use polars::prelude::*;
+use polars_ext::{ExprExt as _, expr::ExprIfExt as _};
 use std::hash::{Hash, Hasher};
 
 /// Calculation computed

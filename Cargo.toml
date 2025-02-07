@@ -73,6 +73,7 @@ polars = { version = "0.46.0", default-features = false, features = [
     # "semi_anti_join",
     # "temporal",
 ] }
+polars_ext = { git = "https://github.com/kgv/polars_ext" }
 radix_trie = "0.2.1"
 semver = { version = "1.0.25", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive", "std"] }

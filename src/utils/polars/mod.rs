@@ -1,43 +1,6 @@
-pub use self::expr::ExprExt;
-
 use polars::prelude::*;
 
-pub fn column(
-    function: impl Fn(&Series) -> PolarsResult<Series>,
-) -> impl Fn(Column) -> PolarsResult<Option<Column>> {
-    move |column| {
-        let Some(series) = column.as_series() else {
-            return Ok(None);
-        };
-        Ok(Some(function(series)?.into_column()))
-    }
-}
-
-fn normalize(series: &Series) -> PolarsResult<Series> {
-    let chunked_array = series.f64()?;
-    let sum = chunked_array.sum();
-    Ok(chunked_array
-        .iter()
-        .map(|option| Some(option.unwrap_or_default() / sum?))
-        .collect::<Float64Chunked>()
-        .into_series())
-}
-
-pub fn hash(series: &Series) -> PolarsResult<Series> {
-    use egui::util::hash;
-
-    Ok(series
-        .iter()
-        .map(|value| Ok(Some(hash(value))))
-        .collect::<PolarsResult<UInt64Chunked>>()?
-        .into_series())
-}
-
-pub fn round(decimals: u32) -> impl Fn(&Series) -> PolarsResult<Series> {
-    move |series| series.round(decimals)
-}
-
-/// `Boolean` to `String`
+/// Convert type `Boolean` to `String`
 pub fn r#type(series: &Series) -> PolarsResult<Series> {
     Ok(series
         .bool()?
@@ -71,3 +34,40 @@ pub fn tag_map(
 
 pub mod expr;
 pub mod schema;
+
+// pub use self::expr::ExprExt;
+
+// pub fn column(
+//     function: impl Fn(&Series) -> PolarsResult<Series>,
+// ) -> impl Fn(Column) -> PolarsResult<Option<Column>> {
+//     move |column| {
+//         let Some(series) = column.as_series() else {
+//             return Ok(None);
+//         };
+//         Ok(Some(function(series)?.into_column()))
+//     }
+// }
+
+// fn normalize(series: &Series) -> PolarsResult<Series> {
+//     let chunked_array = series.f64()?;
+//     let sum = chunked_array.sum();
+//     Ok(chunked_array
+//         .iter()
+//         .map(|option| Some(option.unwrap_or_default() / sum?))
+//         .collect::<Float64Chunked>()
+//         .into_series())
+// }
+
+// pub fn hash(series: &Series) -> PolarsResult<Series> {
+//     use egui::util::hash;
+
+//     Ok(series
+//         .iter()
+//         .map(|value| Ok(Some(hash(value))))
+//         .collect::<PolarsResult<UInt64Chunked>>()?
+//         .into_series())
+// }
+
+// pub fn round(decimals: u32) -> impl Fn(&Series) -> PolarsResult<Series> {
+//     move |series| series.round(decimals)
+// }

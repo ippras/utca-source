@@ -2,13 +2,14 @@ use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
-    utils::polars::{round, tag_map, r#type},
+    utils::polars::{tag_map, r#type},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
 use polars::prelude::*;
+use polars_ext::functions::round;
 use std::ops::{Add, Range};
 
 const INDEX: Range<usize> = 0..1;
