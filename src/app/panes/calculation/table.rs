@@ -136,15 +136,15 @@ impl TableView<'_> {
                 ui.heading("MAG2")
                     .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
             }
-            (1, theoretical::TAG) => {
+            (1, theoretical::TAG) if self.settings.theoretical => {
                 ui.heading("TAG")
                     .on_hover_text(localize!("triacylglycerol"));
             }
-            (1, theoretical::DAG1223) => {
+            (1, theoretical::DAG1223) if self.settings.theoretical => {
                 ui.heading("DAG1223")
                     .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
             }
-            (1, theoretical::MAG2) => {
+            (1, theoretical::MAG2) if self.settings.theoretical => {
                 ui.heading("MAG2")
                     .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
             }
@@ -203,9 +203,8 @@ impl TableView<'_> {
                 ui.label(label);
             }
             (row, id::FA) => {
-                FattyAcidWidget::new(|| self.data_frame.fatty_acid().get(row))
-                    .hover()
-                    .show(ui);
+                let mut fatty_acid = self.data_frame.fatty_acid().get(row)?;
+                FattyAcidWidget::new(fatty_acid.as_mut()).hover().show(ui);
             }
             (row, experimental::TAG) => {
                 self.value(
@@ -240,7 +239,7 @@ impl TableView<'_> {
                     self.settings.from != From::Mag2,
                 )?;
             }
-            (row, theoretical::TAG) => {
+            (row, theoretical::TAG) if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]
@@ -251,7 +250,7 @@ impl TableView<'_> {
                     true,
                 )?;
             }
-            (row, theoretical::DAG1223) => {
+            (row, theoretical::DAG1223) if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]
@@ -262,7 +261,7 @@ impl TableView<'_> {
                     true,
                 )?;
             }
-            (row, theoretical::MAG2) => {
+            (row, theoretical::MAG2) if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]
@@ -364,7 +363,7 @@ impl TableView<'_> {
                 )?
                 .on_hover_text("∑ MAG2");
             }
-            theoretical::TAG => {
+            theoretical::TAG if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]
@@ -376,7 +375,7 @@ impl TableView<'_> {
                 )?
                 .on_hover_text("∑ TAG");
             }
-            theoretical::DAG1223 => {
+            theoretical::DAG1223 if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]
@@ -388,7 +387,7 @@ impl TableView<'_> {
                 )?
                 .on_hover_text("∑ DAG1223");
             }
-            theoretical::MAG2 => {
+            theoretical::MAG2 if self.settings.theoretical => {
                 self.value(
                     ui,
                     self.data_frame["Theoretical"]

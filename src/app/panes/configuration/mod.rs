@@ -182,17 +182,9 @@ impl Pane {
     fn body_content_data(&mut self, ui: &mut Ui, index: usize) {
         let data_frame = &mut self.frames[index].data;
         TableView::new(data_frame, &self.settings, &mut self.state).show(ui);
-        if self.state.add_row {
-            self.add_row().context(ui.ctx());
-            self.state.add_row = false;
-        }
-        if let Some(index) = self.state.delete_row {
-            self.delete_row(index).context(ui.ctx());
-            self.state.delete_row = None;
-        }
     }
 
-    fn add_row(&mut self) -> PolarsResult<()> {
+    fn _add_row(&mut self) -> PolarsResult<()> {
         let data_frame = &mut self.frames[self.settings.index].data;
         *data_frame = concat(
             [
@@ -226,7 +218,7 @@ impl Pane {
         Ok(())
     }
 
-    fn delete_row(&mut self, row: usize) -> PolarsResult<()> {
+    fn _delete_row(&mut self, row: usize) -> PolarsResult<()> {
         let data_frame = &mut self.frames[self.settings.index].data;
         let mut lazy_frame = data_frame.clone().lazy();
         lazy_frame = lazy_frame

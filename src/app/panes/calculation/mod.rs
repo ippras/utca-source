@@ -164,9 +164,8 @@ impl Pane {
                         ui.heading("Value");
                         ui.end_row();
                         for index in 0..CHRISTIE.data.height() {
-                            FattyAcidWidget::new(|| CHRISTIE.data.fatty_acid().get(index))
-                                .hover()
-                                .show(ui);
+                            let mut fatty_acid = CHRISTIE.data.fatty_acid().get(index).unwrap();
+                            FattyAcidWidget::new(fatty_acid.as_mut()).hover().show(ui);
                             FloatWidget::new(move || {
                                 Ok(CHRISTIE.data["Christie"].f64()?.get(index))
                             })
