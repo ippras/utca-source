@@ -2,15 +2,13 @@ use super::{
     ID_SOURCE, State,
     settings::{From, Settings},
 };
-use crate::{
-    app::{
-        ContextExt as _,
-        panes::MARGIN,
-        widgets::{FattyAcidWidget, FloatWidget},
-    },
-    localize,
+use crate::app::{
+    ContextExt as _,
+    panes::MARGIN,
+    widgets::{FattyAcidWidget, FloatWidget},
 };
 use egui::{Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
+use egui_l20n::UiExt as _;
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
@@ -102,63 +100,63 @@ impl TableView<'_> {
         match (row, column) {
             // Top
             (0, ID) => {
-                ui.heading(localize!("ID"));
+                ui.heading(ui.localize("ID"));
             }
             (0, EXPERIMENTAL) => {
-                ui.heading(localize!("Experimental"));
+                ui.heading(ui.localize("Experimental"));
             }
             (0, THEORETICAL) => {
-                ui.heading(localize!("Theoretical"));
+                ui.heading(ui.localize("Theoretical"));
             }
             (0, FACTORS) if self.settings.factors => {
-                ui.heading(localize!("Factors"));
+                ui.heading(ui.localize("Factors"));
             }
             // Middle
             (1, id::INDEX) => {
-                ui.heading(localize!("Index"));
+                ui.heading(ui.localize("Index"));
             }
             (1, id::LABEL) => {
-                ui.heading(localize!("Label"));
+                ui.heading(ui.localize("Label"));
             }
             (1, id::FA) => {
-                ui.heading(localize!("fatty_acid.abbreviation"))
-                    .on_hover_text(localize!("fatty_acid"));
+                ui.heading(ui.localize("fatty_acid.abbreviation"))
+                    .on_hover_text(ui.localize("fatty_acid"));
             }
             (1, experimental::TAG) => {
                 ui.heading("TAG")
-                    .on_hover_text(localize!("triacylglycerol"));
+                    .on_hover_text(ui.localize("triacylglycerol"));
             }
             (1, experimental::DAG1223) => {
                 ui.heading("DAG1223")
-                    .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
+                    .on_hover_text(format!("sn-1,2/2,3 {}", ui.localize("diacylglycerol")));
             }
             (1, experimental::MAG2) => {
                 ui.heading("MAG2")
-                    .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
+                    .on_hover_text(format!("sn-2 {}", ui.localize("monoacylglycerol")));
             }
             (1, theoretical::TAG) if self.settings.theoretical => {
                 ui.heading("TAG")
-                    .on_hover_text(localize!("triacylglycerol"));
+                    .on_hover_text(ui.localize("triacylglycerol"));
             }
             (1, theoretical::DAG1223) if self.settings.theoretical => {
                 ui.heading("DAG1223")
-                    .on_hover_text(format!("sn-1,2/2,3 {}", localize!("diacylglycerol")));
+                    .on_hover_text(format!("sn-1,2/2,3 {}", ui.localize("diacylglycerol")));
             }
             (1, theoretical::MAG2) if self.settings.theoretical => {
                 ui.heading("MAG2")
-                    .on_hover_text(format!("sn-2 {}", localize!("monoacylglycerol")));
+                    .on_hover_text(format!("sn-2 {}", ui.localize("monoacylglycerol")));
             }
             (1, theoretical::DAG13) => {
                 ui.heading("DAG13")
-                    .on_hover_text(format!("sn-13 {}", localize!("diacylglycerol")));
+                    .on_hover_text(format!("sn-13 {}", ui.localize("diacylglycerol")));
             }
             (1, factors::EF) if self.settings.factors => {
                 ui.heading("EF")
-                    .on_hover_text(localize!("enrichment_factor"));
+                    .on_hover_text(ui.localize("enrichment_factor"));
             }
             (1, factors::SF) if self.settings.factors => {
                 ui.heading("SF")
-                    .on_hover_text(localize!("selectivity_factor"));
+                    .on_hover_text(ui.localize("selectivity_factor"));
             }
             // Bottom
             (2, theoretical::dag13::DAG1223) => {

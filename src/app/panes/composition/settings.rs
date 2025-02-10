@@ -1,7 +1,6 @@
 use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
-    localize,
     special::composition::{
         Composition, MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC,
     },
@@ -11,6 +10,7 @@ use egui::{
     Slider, SliderClamping, Ui, emath::Float,
 };
 use egui_ext::LabeledSeparator;
+use egui_l20n::UiExt;
 use egui_phosphor::regular::{FUNNEL, FUNNEL_X, MINUS, PLUS, TRASH};
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ impl Settings {
     pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
         Grid::new("composition").show(ui, |ui| {
             // Sticky
-            ui.label(localize!("sticky"));
+            ui.label(ui.localize("sticky"));
             ui.add(Slider::new(
                 &mut self.sticky_columns,
                 0..=self.unconfirmed.groups.len() * 2 + 1,
@@ -57,12 +57,12 @@ impl Settings {
             ui.end_row();
 
             // Precision
-            ui.label(localize!("precision"));
+            ui.label(ui.localize("precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             ui.end_row();
 
             // Percent
-            ui.label(localize!("percent"));
+            ui.label(ui.localize("percent"));
             ui.checkbox(&mut self.percent, "");
             ui.end_row();
 
@@ -71,7 +71,7 @@ impl Settings {
             ui.end_row();
 
             // Compose
-            ui.label(localize!("compose"));
+            ui.label(ui.localize("compose"));
             if ui.button(PLUS).clicked() {
                 self.unconfirmed.groups.push_front(Group::new());
             }
@@ -134,7 +134,7 @@ impl Settings {
                         ui.label(format!(
                             "{} {}",
                             group.composition.text(),
-                            localize!("filter"),
+                            ui.localize("filter"),
                         ));
                         // Key
                         let mut is_open = false;
@@ -212,7 +212,7 @@ impl Settings {
             });
 
             // Method
-            ui.label(localize!("method"));
+            ui.label(ui.localize("method"));
             if ui.input_mut(|input| {
                 input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
             }) {
@@ -244,7 +244,7 @@ impl Settings {
             ui.end_row();
 
             // Adduct
-            ui.label(localize!("adduct"));
+            ui.label(ui.localize("adduct"));
             ui.horizontal(|ui| {
                 let adduct = &mut self.unconfirmed.adduct;
                 ui.add(
@@ -275,7 +275,7 @@ impl Settings {
             ui.end_row();
 
             // Round mass
-            ui.label(localize!("round-mass"));
+            ui.label(ui.localize("round-mass"));
             ui.add(Slider::new(
                 &mut self.unconfirmed.round_mass,
                 0..=MAX_PRECISION as _,
@@ -284,16 +284,16 @@ impl Settings {
 
             // View
             ui.separator();
-            ui.labeled_separator(RichText::new(localize!("view")).heading());
+            ui.labeled_separator(RichText::new(ui.localize("view")).heading());
             ui.end_row();
 
-            ui.label(localize!("show-filtered"))
+            ui.label(ui.localize("show-filtered"))
                 .on_hover_text("Show filtered");
             ui.checkbox(&mut self.unconfirmed.show_filtered, "");
             ui.end_row();
 
             // // Join
-            // ui.label(localize!("join"));
+            // ui.label(ui.localize("join"));
             // ComboBox::from_id_salt("join")
             //     .selected_text(self.join.text())
             //     .show_ui(ui, |ui| {
@@ -309,11 +309,11 @@ impl Settings {
             // ui.end_row();
 
             ui.separator();
-            ui.labeled_separator(RichText::new(localize!("sort")).heading());
+            ui.labeled_separator(RichText::new(ui.localize("sort")).heading());
             ui.end_row();
 
             // Sort
-            ui.label(localize!("sort"));
+            ui.label(ui.localize("sort"));
             ComboBox::from_id_salt("sort")
                 .selected_text(self.unconfirmed.sort.text())
                 .show_ui(ui, |ui| {
@@ -330,7 +330,7 @@ impl Settings {
                 .on_hover_text(self.unconfirmed.sort.hover_text());
             ui.end_row();
             // Order
-            ui.label(localize!("order"));
+            ui.label(ui.localize("order"));
             ComboBox::from_id_salt("order")
                 .selected_text(self.unconfirmed.order.text())
                 .show_ui(ui, |ui| {
@@ -354,11 +354,11 @@ impl Settings {
             if self.index.is_none() {
                 // Statistic
                 ui.separator();
-                ui.labeled_separator(RichText::new(localize!("statistic")).heading());
+                ui.labeled_separator(RichText::new(ui.localize("statistic")).heading());
                 ui.end_row();
 
                 // https://numpy.org/devdocs/reference/generated/numpy.std.html
-                ui.label(localize!("ddof"));
+                ui.label(ui.localize("ddof"));
                 ui.add(Slider::new(&mut self.unconfirmed.ddof, 0..=2));
                 ui.end_row();
             }
@@ -428,19 +428,19 @@ pub(crate) enum Join {
 }
 
 impl Join {
-    pub(crate) fn text(self) -> String {
+    pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::Left => localize!("left"),
-            Self::And => localize!("and"),
-            Self::Or => localize!("or"),
+            Self::Left => "left",
+            Self::And => "and",
+            Self::Or => "or",
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(crate) fn hover_text(self) -> &'static str {
         match self {
-            Self::Left => localize!("left.description"),
-            Self::And => localize!("and.description"),
-            Self::Or => localize!("or.description"),
+            Self::Left => "left.description",
+            Self::And => "and.description",
+            Self::Or => "or.description",
         }
     }
 }
@@ -463,17 +463,17 @@ pub(crate) enum Method {
 }
 
 impl Method {
-    pub(crate) fn text(&self) -> String {
+    pub(crate) fn text(&self) -> &'static str {
         match self {
-            Self::Gunstone => localize!("gunstone"),
-            Self::VanderWal => localize!("vander_wal"),
+            Self::Gunstone => "gunstone",
+            Self::VanderWal => "vander_wal",
         }
     }
 
-    pub(crate) fn hover_text(&self) -> String {
+    pub(crate) fn hover_text(&self) -> &'static str {
         match self {
-            Self::Gunstone => localize!("gunstone.description"),
-            Self::VanderWal => localize!("vander_wal.description"),
+            Self::Gunstone => "gunstone.description",
+            Self::VanderWal => "vander_wal.description",
         }
     }
 }
@@ -521,17 +521,17 @@ pub(crate) enum Sort {
 }
 
 impl Sort {
-    pub(crate) fn text(self) -> String {
+    pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::Key => localize!("key"),
-            Self::Value => localize!("value"),
+            Self::Key => "key",
+            Self::Value => "value",
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(crate) fn hover_text(self) -> &'static str {
         match self {
-            Self::Key => localize!("key.description"),
-            Self::Value => localize!("value.description"),
+            Self::Key => "key.description",
+            Self::Value => "value.description",
         }
     }
 }
@@ -544,17 +544,17 @@ pub(crate) enum Order {
 }
 
 impl Order {
-    pub(crate) fn text(self) -> String {
+    pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::Ascending => localize!("ascending"),
-            Self::Descending => localize!("descending"),
+            Self::Ascending => "ascending",
+            Self::Descending => "descending",
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(crate) fn hover_text(self) -> &'static str {
         match self {
-            Self::Ascending => localize!("ascending.description"),
-            Self::Descending => localize!("descending.description"),
+            Self::Ascending => "ascending.description",
+            Self::Descending => "descending.description",
         }
     }
 }

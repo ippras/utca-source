@@ -23,6 +23,7 @@ egui-phosphor = "0.9.0"
 egui_dnd = "0.12.0"
 egui_ext = { git = "https://github.com/kgv/egui_ext" }
 egui_extras = { version = "0.31.0", features = ["datepicker", "serde"] }
+egui_l20n = { git = "https://github.com/kgv/egui_l20n", features = ["macros"] }
 egui_plot = "0.31.0"
 egui_table = "0.3.0"
 egui_tiles = "0.12.0"
@@ -73,6 +74,7 @@ polars = { version = "0.46.0", default-features = false, features = [
     # "semi_anti_join",
     # "temporal",
 ] }
+polars-utils = { git = "https://github.com/pola-rs/polars" }
 polars_ext = { git = "https://github.com/kgv/polars_ext" }
 radix_trie = "0.2.1"
 semver = { version = "1.0.25", features = ["serde"] }

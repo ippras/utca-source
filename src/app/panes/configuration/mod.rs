@@ -1,12 +1,9 @@
 use self::{settings::Settings, state::State, table::TableView};
 use super::PaneDelegate;
-use crate::{
-    app::{ContextExt, ResultExt},
-    localize,
-    utils::save,
-};
+use crate::{app::ContextExt, utils::save};
 use anyhow::Result;
 use egui::{CursorIcon, Id, Response, RichText, Ui, Window, util::hash};
+use egui_l20n::UiExt as _;
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, ERASER, FLOPPY_DISK, GEAR, LIST, NOTE_PENCIL,
     PENCIL, TAG, TRASH,
@@ -70,7 +67,7 @@ impl Pane {
     fn header_content(&mut self, ui: &mut Ui) -> Response {
         let mut response = ui
             .heading(Self::icon())
-            .on_hover_text(localize!("configuration"));
+            .on_hover_text(ui.localize("configuration"));
         response |= ui.heading(self.title());
         response = response
             .on_hover_text(format!("{:x}", self.hash()))
@@ -92,7 +89,7 @@ impl Pane {
             }
         })
         .response
-        .on_hover_text(localize!("list"));
+        .on_hover_text(ui.localize("list"));
         ui.separator();
         // Reset
         if ui
@@ -106,17 +103,17 @@ impl Pane {
             &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
-        .on_hover_text(localize!("resize"));
+        .on_hover_text(ui.localize("resize"));
         // Edit
         ui.toggle_value(&mut self.settings.editable, RichText::new(PENCIL).heading())
-            .on_hover_text(localize!("edit"));
+            .on_hover_text(ui.localize("edit"));
         // Clear
         ui.add_enabled_ui(
             self.settings.editable && self.frames[self.settings.index].data.height() > 0,
             |ui| {
                 if ui
                     .button(RichText::new(ERASER).heading())
-                    .on_hover_text(localize!("clear"))
+                    .on_hover_text(ui.localize("clear"))
                     .clicked()
                 {
                     let data_frame = &mut self.frames[self.settings.index].data;
@@ -128,7 +125,7 @@ impl Pane {
         ui.add_enabled_ui(self.settings.editable && self.frames.len() > 1, |ui| {
             if ui
                 .button(RichText::new(TRASH).heading())
-                .on_hover_text(localize!("delete"))
+                .on_hover_text(ui.localize("delete"))
                 .clicked()
             {
                 self.frames.remove(self.settings.index);
@@ -141,12 +138,12 @@ impl Pane {
             &mut self.state.open_settings_window,
             RichText::new(GEAR).heading(),
         )
-        .on_hover_text(localize!("settings"));
+        .on_hover_text(ui.localize("settings"));
         ui.separator();
         // Save
         if ui
             .button(RichText::new(FLOPPY_DISK).heading())
-            .on_hover_text(localize!("save"))
+            .on_hover_text(ui.localize("save"))
             .on_hover_text(format!("{}.utca.ipc", self.title()))
             .clicked()
         {
@@ -158,7 +155,7 @@ impl Pane {
         // Calculation
         if ui
             .button(RichText::new(CALCULATOR).heading())
-            .on_hover_text(localize!("calculation"))
+            .on_hover_text(ui.localize("calculation"))
             .clicked()
         {
             ui.data_mut(|data| {

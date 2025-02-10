@@ -1,7 +1,8 @@
 use super::State;
-use crate::{app::MAX_PRECISION, localize};
+use crate::app::MAX_PRECISION;
 use egui::{ComboBox, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui};
 use egui_ext::LabeledSeparator;
+use egui_l20n::UiExt as _;
 use egui_phosphor::regular::BROWSERS;
 use serde::{Deserialize, Serialize};
 
@@ -58,22 +59,22 @@ impl Settings {
     pub(crate) fn show(&mut self, ui: &mut Ui, state: &mut State) {
         Grid::new("calculation").show(ui, |ui| {
             // Sticky
-            ui.label(localize!("sticky"));
+            ui.label(ui.localize("sticky"));
             ui.add(Slider::new(&mut self.sticky_columns, 0..=14));
             ui.end_row();
 
             // Precision
-            ui.label(localize!("precision"));
+            ui.label(ui.localize("precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             ui.end_row();
 
             // Percent
-            ui.label(localize!("percent"));
+            ui.label(ui.localize("percent"));
             ui.checkbox(&mut self.percent, "");
             ui.end_row();
 
             // Truncate
-            ui.label(localize!("truncate"));
+            ui.label(ui.localize("truncate"));
             ui.checkbox(&mut self.truncate, "");
             ui.end_row();
 
@@ -82,7 +83,7 @@ impl Settings {
             ui.end_row();
 
             // Fraction
-            ui.label(localize!("fraction"));
+            ui.label(ui.localize("fraction"));
             let fraction = &mut self.fraction;
             ComboBox::from_id_salt("fraction")
                 .selected_text(fraction.text())
@@ -97,8 +98,8 @@ impl Settings {
             ui.end_row();
 
             // Calculate
-            ui.label(localize!("from"))
-                .on_hover_text(localize!("from.description"));
+            ui.label(ui.localize("from"))
+                .on_hover_text(ui.localize("from.description"));
             if ui.input_mut(|input| {
                 input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::Num1))
             }) {
@@ -122,20 +123,23 @@ impl Settings {
             ui.end_row();
 
             // Signed
-            ui.label(localize!("unsigned"));
-            ui.checkbox(&mut self.unsigned, localize!("theoretical"));
+            ui.label(ui.localize("unsigned"));
+            ui.checkbox(&mut self.unsigned, ui.localize("theoretical"));
             ui.end_row();
 
             // Normalize
-            ui.label(localize!("normalize"));
+            ui.label(ui.localize("normalize"));
             ui.horizontal(|ui| {
-                ui.checkbox(&mut self.normalize.experimental, localize!("experimental"));
-                ui.checkbox(&mut self.normalize.theoretical, localize!("theoretical"));
+                ui.checkbox(
+                    &mut self.normalize.experimental,
+                    ui.localize("experimental"),
+                );
+                ui.checkbox(&mut self.normalize.theoretical, ui.localize("theoretical"));
             });
             ui.end_row();
 
             // Christie
-            ui.label(localize!("christie"));
+            ui.label(ui.localize("christie"));
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.christie, "");
                 ui.toggle_value(
@@ -150,21 +154,21 @@ impl Settings {
             ui.end_row();
 
             // Factors
-            ui.label(localize!("factors"));
+            ui.label(ui.localize("factors"));
             ui.checkbox(&mut self.factors, "");
             ui.end_row();
 
             // Theoretical
-            ui.label(localize!("theoretical"));
+            ui.label(ui.localize("theoretical"));
             ui.checkbox(&mut self.theoretical, "");
             ui.end_row();
 
             if self.index.is_none() {
                 ui.separator();
-                ui.labeled_separator(RichText::new(localize!("statistic")).heading());
+                ui.labeled_separator(RichText::new(ui.localize("statistic")).heading());
                 ui.end_row();
 
-                // ui.label(localize!("merge"));
+                // ui.label(ui.localize("merge"));
                 // ui.checkbox(&mut self.merge, "");
                 // ComboBox::from_id_salt("show")
                 //     .selected_text(self.show.text())
@@ -179,7 +183,7 @@ impl Settings {
                 // ui.end_row();
 
                 // https://numpy.org/devdocs/reference/generated/numpy.std.html
-                ui.label(localize!("ddof"));
+                ui.label(ui.localize("ddof"));
                 ui.add(Slider::new(&mut self.ddof, 0..=2));
                 ui.end_row();
             }
@@ -197,10 +201,10 @@ pub(crate) enum Fraction {
 }
 
 impl Fraction {
-    pub(crate) fn text(self) -> String {
+    pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::AsIs => localize!("as_is"),
-            Self::Fraction => "Pchelkin".to_owned(),
+            Self::AsIs => "as_is",
+            Self::Fraction => "pchelkin",
         }
     }
 
@@ -221,17 +225,17 @@ pub(crate) enum From {
 }
 
 impl From {
-    pub(crate) fn text(self) -> String {
+    pub(crate) fn text(self) -> &'static str {
         match self {
-            Self::Dag1223 => localize!("from_dag"),
-            Self::Mag2 => localize!("from_mag"),
+            Self::Dag1223 => "from_dag",
+            Self::Mag2 => "from_mag",
         }
     }
 
-    pub(crate) fn hover_text(self) -> String {
+    pub(crate) fn hover_text(self) -> &'static str {
         match self {
-            Self::Dag1223 => localize!("from_dag.description"),
-            Self::Mag2 => localize!("from_mag.description"),
+            Self::Dag1223 => "from_dag.description",
+            Self::Mag2 => "from_mag.description",
         }
     }
 }

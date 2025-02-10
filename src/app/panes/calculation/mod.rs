@@ -1,20 +1,19 @@
 use self::{settings::Settings, state::State, table::TableView};
 use super::PaneDelegate;
-use crate::{
-    app::{
-        computers::{CalculationComputed, CalculationKey},
-        presets::CHRISTIE,
-        widgets::{FattyAcidWidget, FloatWidget},
-    },
-    localize,
+use crate::app::{
+    computers::{CalculationComputed, CalculationKey},
+    presets::CHRISTIE,
+    widgets::{FattyAcidWidget, FloatWidget},
 };
 use egui::{CursorIcon, Grid, Id, Response, RichText, ScrollArea, Ui, Window, util::hash};
+use egui_l20n::UiExt as _;
 use egui_phosphor::regular::{
     ARROWS_CLOCKWISE, ARROWS_HORIZONTAL, CALCULATOR, GEAR, INTERSECT_THREE, LIST, MATH_OPERATIONS,
 };
 use lipid::prelude::DataFrameExt as _;
 use metadata::MetaDataFrame;
 use polars::prelude::*;
+use polars_utils::format_list_truncated;
 use serde::{Deserialize, Serialize};
 
 const ID_SOURCE: &str = "Calculation";
@@ -45,14 +44,14 @@ impl Pane {
     pub(crate) fn title(&self) -> String {
         match self.settings.index {
             Some(index) => self.source[index].meta.title(),
-            None => localize!("calculation"),
+            None => format_list_truncated!(self.source.iter().map(|frame| frame.meta.title()), 2),
         }
     }
 
     fn header_content(&mut self, ui: &mut Ui) -> Response {
         let mut response = ui
             .heading(Self::icon())
-            .on_hover_text(localize!("calculation"));
+            .on_hover_text(ui.localize("calculation"));
         response |= ui.heading(self.title());
         response = response
             .on_hover_text(format!("{:x}", self.hash()))
@@ -76,7 +75,7 @@ impl Pane {
             }
         })
         .response
-        .on_hover_text(localize!("list"));
+        .on_hover_text(ui.localize("list"));
         ui.separator();
         // Reset
         if ui
@@ -90,7 +89,7 @@ impl Pane {
             &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
-        .on_hover_text(localize!("resize"));
+        .on_hover_text(ui.localize("resize"));
         ui.separator();
         // Settings
         ui.toggle_value(
@@ -101,7 +100,7 @@ impl Pane {
         // Composition
         if ui
             .button(RichText::new(INTERSECT_THREE).heading())
-            .on_hover_text(localize!("composition"))
+            .on_hover_text(ui.localize("composition"))
             .clicked()
         {
             let mut target = Vec::with_capacity(self.source.len());

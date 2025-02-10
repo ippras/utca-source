@@ -4,7 +4,7 @@ use self::{
     panes::{Pane, behavior::Behavior, configuration::Pane as ConfigurationPane},
     windows::{About, GithubWindow},
 };
-use crate::{localization::UiExt, localize};
+use crate::localization::ContextExt as _;
 use anyhow::Error;
 use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
@@ -15,6 +15,7 @@ use egui::{
     warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
+use egui_l20n::{Localization, UiExt as _};
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
@@ -108,6 +109,15 @@ impl App {
         let mut fonts = FontDefinitions::default();
         add_to_fonts(&mut fonts, Variant::Regular);
         cc.egui_ctx.set_fonts(fonts);
+        cc.egui_ctx.set_localizations();
+        // cc.egui_ctx.set_localization(
+        //     langid!("ru"),
+        //     Localization::new(language_identifier).with_sources(RU),
+        // );
+        // cc.egui_ctx.set_localization(
+        //     langid!("ru"),
+        //     Localization::new(language_identifier).with_sources(RU),
+        // );
         custom_style(&cc.egui_ctx);
 
         // return Default::default();
@@ -165,7 +175,7 @@ impl App {
         CentralPanel::default()
             .frame(Frame::central_panel(&ctx.style()).inner_margin(0))
             .show(ctx, |ui| {
-                let mut behavior = Behavior { close: None };
+                let mut behavior = Behavior::new();
                 self.tree.ui(&mut behavior, ui);
                 if let Some(id) = behavior.close {
                     self.tree.tiles.remove(id);
@@ -194,7 +204,7 @@ impl App {
                         &mut self.left_panel,
                         RichText::new(SIDEBAR_SIMPLE).size(ICON_SIZE),
                     )
-                    .on_hover_text(localize!("LeftPanel"));
+                    .on_hover_text(ui.localize("LeftPanel"));
                     ui.separator();
                     // Light/Dark
                     ui.light_dark_button(ICON_SIZE);
@@ -202,7 +212,7 @@ impl App {
                     // Reset app
                     if ui
                         .button(RichText::new(TRASH).size(ICON_SIZE))
-                        .on_hover_text(localize!("reset_application"))
+                        .on_hover_text(ui.localize("reset_application"))
                         .clicked()
                     {
                         *self = Default::default();
@@ -212,7 +222,7 @@ impl App {
                     // Reset app
                     if ui
                         .button(RichText::new(ARROWS_CLOCKWISE).size(ICON_SIZE))
-                        .on_hover_text(localize!("reset_gui"))
+                        .on_hover_text(ui.localize("reset_gui"))
                         .clicked()
                     {
                         let mut data = IdTypeMap::default();
@@ -235,7 +245,7 @@ impl App {
                     ui.separator();
                     if ui
                         .button(RichText::new(SQUARE_SPLIT_VERTICAL).size(ICON_SIZE))
-                        .on_hover_text(localize!("vertical"))
+                        .on_hover_text(ui.localize("vertical"))
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -246,7 +256,7 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(SQUARE_SPLIT_HORIZONTAL).size(ICON_SIZE))
-                        .on_hover_text(localize!("horizontal"))
+                        .on_hover_text(ui.localize("horizontal"))
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -257,7 +267,7 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(GRID_FOUR).size(ICON_SIZE))
-                        .on_hover_text(localize!("grid"))
+                        .on_hover_text(ui.localize("grid"))
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -268,7 +278,7 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(TABS).size(ICON_SIZE))
-                        .on_hover_text(localize!("tabs"))
+                        .on_hover_text(ui.localize("tabs"))
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -280,7 +290,7 @@ impl App {
                     ui.separator();
                     // ui.menu_button(RichText::new(GEAR).size(ICON_SIZE), |ui| {
                     //     ui.horizontal(|ui| {
-                    //         ui.label(localize!("github token"));
+                    //         ui.label(ui.localize("github token"));
                     //         let id = Id::new("GithubToken");
                     //         let mut github_token = ui.data_mut(|data| {
                     //             data.get_persisted::<String>(id).unwrap_or_default()
@@ -293,7 +303,7 @@ impl App {
                     //         }
                     //     });
                     //     ui.horizontal(|ui| {
-                    //         ui.label(localize!("christie"));
+                    //         ui.label(ui.localize("christie"));
                     //         let pane = Pane::christie();
                     //         let tile_id = self.tree.tiles.find_pane(&pane);
                     //         let mut selected = tile_id.is_some();
@@ -312,7 +322,7 @@ impl App {
                     // });
                     if ui
                         .button(RichText::new(GEAR).size(ICON_SIZE))
-                        .on_hover_text(localize!("settings"))
+                        .on_hover_text(ui.localize("settings"))
                         .clicked()
                     {
                         self.settings.open = !self.settings.open;
@@ -363,7 +373,7 @@ impl App {
                         }
                         ui.separator();
                         // Locale
-                        ui.locale_button().on_hover_text(localize!("language"));
+                        ui.locale_button().on_hover_text(ui.localize("language"));
                         ui.separator();
                     });
                 });

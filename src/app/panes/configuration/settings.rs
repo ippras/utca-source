@@ -1,5 +1,6 @@
-use crate::{app::MAX_PRECISION, localize};
+use crate::app::MAX_PRECISION;
 use egui::{Grid, Slider, Ui};
+use egui_l20n::UiExt as _;
 use serde::{Deserialize, Serialize};
 
 /// Configuration settings
@@ -34,7 +35,7 @@ impl Settings {
     pub(crate) fn show(&mut self, ui: &mut Ui) {
         Grid::new("configuration").show(ui, |ui| {
             // Precision
-            ui.label(localize!("precision"));
+            ui.label(ui.localize("precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             ui.end_row();
 
@@ -43,15 +44,15 @@ impl Settings {
             ui.end_row();
 
             // Properties
-            ui.label(localize!("properties"));
+            ui.label(ui.localize("properties"));
             ui.checkbox(&mut self.properties, "")
-                .on_hover_text(localize!("properties_description"));
+                .on_hover_text(ui.localize("properties_description"));
             ui.end_row();
 
             // Names
-            ui.label(localize!("names"));
+            ui.label(ui.localize("names"));
             ui.checkbox(&mut self.names, "")
-                .on_hover_text(localize!("names_description"));
+                .on_hover_text(ui.localize("names_description"));
         });
     }
 }
