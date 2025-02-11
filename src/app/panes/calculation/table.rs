@@ -95,7 +95,7 @@ impl TableView<'_> {
     }
 
     fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {
-        if self.settings.truncate {
+        if self.settings.truncate_headers {
             ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
         }
         match (row, column) {
@@ -103,37 +103,37 @@ impl TableView<'_> {
             (0, ID) => {
                 ui.heading(ui.localize("identifier.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("identifier.title_case"));
+                        ui.label(ui.localize("identifier"));
                     });
             }
             (0, EXPERIMENTAL) => {
-                ui.heading(ui.localize("experimental.title_case"));
+                ui.heading(ui.localize("experimental"));
             }
             (0, THEORETICAL) => {
-                ui.heading(ui.localize("theoretical.title_case"));
+                ui.heading(ui.localize("theoretical"));
             }
             (0, FACTORS) if self.settings.factors => {
-                ui.heading(ui.localize("factors.title_case"));
+                ui.heading(ui.localize("factors"));
             }
             // Middle
             (1, id::INDEX) => {
                 ui.heading(HASH).on_hover_ui(|ui| {
-                    ui.label(ui.localize("index.title_case"));
+                    ui.label(ui.localize("index"));
                 });
             }
             (1, id::LABEL) => {
-                ui.heading(ui.localize("label.title_case"));
+                ui.heading(ui.localize("label"));
             }
             (1, id::FA) => {
                 ui.heading(ui.localize("fatty_acid.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("fatty_acid.title_case"));
+                        ui.label(ui.localize("fatty_acid"));
                     });
             }
             (1, experimental::TAG) => {
                 ui.heading(ui.localize("triacylglycerol.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("triacylglycerol.title_case"));
+                        ui.label(ui.localize("triacylglycerol"));
                     });
             }
             (1, experimental::DAG1223) => {
@@ -142,25 +142,19 @@ impl TableView<'_> {
                     ui.localize("diacylglycerol.abbreviation"),
                 ))
                 .on_hover_ui(|ui| {
-                    ui.label(format!(
-                        "sn-1,2/2,3 {}",
-                        ui.localize("diacylglycerol.title_case"),
-                    ));
+                    ui.label(format!("sn-1,2/2,3 {}", ui.localize("diacylglycerol"),));
                 });
             }
             (1, experimental::MAG2) => {
                 ui.heading(format!("{}2", ui.localize("monoacylglycerol.abbreviation")))
                     .on_hover_ui(|ui| {
-                        ui.label(format!(
-                            "sn-2 {}",
-                            ui.localize("monoacylglycerol.title_case"),
-                        ));
+                        ui.label(format!("sn-2 {}", ui.localize("monoacylglycerol"),));
                     });
             }
             (1, theoretical::TAG) if self.settings.theoretical => {
                 ui.heading(ui.localize("triacylglycerol.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("triacylglycerol.title_case"));
+                        ui.label(ui.localize("triacylglycerol"));
                     });
             }
             (1, theoretical::DAG1223) if self.settings.theoretical => {
@@ -169,40 +163,31 @@ impl TableView<'_> {
                     ui.localize("diacylglycerol.abbreviation"),
                 ))
                 .on_hover_ui(|ui| {
-                    ui.label(format!(
-                        "sn-1,2/2,3 {}",
-                        ui.localize("diacylglycerol.title_case"),
-                    ));
+                    ui.label(format!("sn-1,2/2,3 {}", ui.localize("diacylglycerol"),));
                 });
             }
             (1, theoretical::MAG2) if self.settings.theoretical => {
                 ui.heading(format!("{}2", ui.localize("monoacylglycerol.abbreviation")))
                     .on_hover_ui(|ui| {
-                        ui.label(format!(
-                            "sn-2 {}",
-                            ui.localize("monoacylglycerol.title_case"),
-                        ));
+                        ui.label(format!("sn-2 {}", ui.localize("monoacylglycerol"),));
                     });
             }
             (1, theoretical::DAG13) => {
                 ui.heading(format!("{}13", ui.localize("diacylglycerol.abbreviation")))
                     .on_hover_ui(|ui| {
-                        ui.label(format!(
-                            "sn-13 {}",
-                            ui.localize("diacylglycerol.title_case"),
-                        ));
+                        ui.label(format!("sn-13 {}", ui.localize("diacylglycerol"),));
                     });
             }
             (1, factors::EF) if self.settings.factors => {
                 ui.heading(ui.localize("enrichment_factor.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("enrichment_factor.title_case"));
+                        ui.label(ui.localize("enrichment_factor"));
                     });
             }
             (1, factors::SF) if self.settings.factors => {
                 ui.heading(ui.localize("selectivity_factor.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("selectivity_factor.title_case"));
+                        ui.label(ui.localize("selectivity_factor"));
                     });
             }
             // Bottom

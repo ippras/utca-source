@@ -85,22 +85,22 @@ impl TableView<'_> {
         match (row, column) {
             (0, INDEX) => {
                 ui.heading(HASH).on_hover_ui(|ui| {
-                    ui.label(ui.localize("index.title_case"));
+                    ui.label(ui.localize("index"));
                 });
             }
             (0, LABEL) => {
-                ui.heading(ui.localize("label.title_case"));
+                ui.heading(ui.localize("label"));
             }
             (0, FA) => {
                 ui.heading(ui.localize("fatty_acid.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("fatty_acid.title_case"));
+                        ui.label(ui.localize("fatty_acid"));
                     });
             }
             (0, TAG) => {
                 ui.heading(ui.localize("triacylglycerol.abbreviation"))
                     .on_hover_ui(|ui| {
-                        ui.label(ui.localize("triacylglycerol.title_case"));
+                        ui.label(ui.localize("triacylglycerol"));
                     });
             }
             (0, DAG1223) => {
@@ -109,19 +109,13 @@ impl TableView<'_> {
                     ui.localize("diacylglycerol.abbreviation"),
                 ))
                 .on_hover_ui(|ui| {
-                    ui.label(format!(
-                        "sn-1,2/2,3 {}",
-                        ui.localize("diacylglycerol.title_case"),
-                    ));
+                    ui.label(format!("sn-1,2/2,3 {}", ui.localize("diacylglycerol"),));
                 });
             }
             (0, MAG2) => {
                 ui.heading(format!("{}2", ui.localize("monoacylglycerol.abbreviation")))
                     .on_hover_ui(|ui| {
-                        ui.label(format!(
-                            "sn-2 {}",
-                            ui.localize("monoacylglycerol.title_case"),
-                        ));
+                        ui.label(format!("sn-2 {}", ui.localize("monoacylglycerol"),));
                     });
             }
             _ => {}

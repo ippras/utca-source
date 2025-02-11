@@ -48,22 +48,22 @@ impl Settings {
 
     pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
         Grid::new("composition").show(ui, |ui| {
-            // Sticky
-            ui.label(ui.localize("sticky"));
-            ui.add(Slider::new(
-                &mut self.sticky_columns,
-                0..=self.unconfirmed.groups.len() * 2 + 1,
-            ));
-            ui.end_row();
-
             // Precision
-            ui.label(ui.localize("precision"));
+            ui.label(ui.localize("settings-precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
             ui.end_row();
 
             // Percent
-            ui.label(ui.localize("percent"));
+            ui.label(ui.localize("settings-percent"));
             ui.checkbox(&mut self.percent, "");
+            ui.end_row();
+
+            // Sticky
+            ui.label(ui.localize("settings-sticky_columns"));
+            ui.add(Slider::new(
+                &mut self.sticky_columns,
+                0..=self.unconfirmed.groups.len() * 2 + 1,
+            ));
             ui.end_row();
 
             ui.separator();
@@ -71,7 +71,7 @@ impl Settings {
             ui.end_row();
 
             // Compose
-            ui.label(ui.localize("compose"));
+            ui.label(ui.localize("settings-compose"));
             if ui.button(PLUS).clicked() {
                 self.unconfirmed.groups.push_front(Group::new());
             }
@@ -134,7 +134,7 @@ impl Settings {
                         ui.label(format!(
                             "{} {}",
                             group.composition.text(),
-                            ui.localize("filter"),
+                            ui.localize("settings-filter"),
                         ));
                         // Key
                         let mut is_open = false;
@@ -212,7 +212,7 @@ impl Settings {
             });
 
             // Method
-            ui.label(ui.localize("method"));
+            ui.label(ui.localize("settings-method"));
             if ui.input_mut(|input| {
                 input.consume_shortcut(&KeyboardShortcut::new(Modifiers::CTRL, Key::G))
             }) {
@@ -244,7 +244,7 @@ impl Settings {
             ui.end_row();
 
             // Adduct
-            ui.label(ui.localize("adduct"));
+            ui.label(ui.localize("settings-adduct"));
             ui.horizontal(|ui| {
                 let adduct = &mut self.unconfirmed.adduct;
                 ui.add(
@@ -275,7 +275,7 @@ impl Settings {
             ui.end_row();
 
             // Round mass
-            ui.label(ui.localize("round-mass"));
+            ui.label(ui.localize("settings-round_mass"));
             ui.add(Slider::new(
                 &mut self.unconfirmed.round_mass,
                 0..=MAX_PRECISION as _,
@@ -284,16 +284,18 @@ impl Settings {
 
             // View
             ui.separator();
-            ui.labeled_separator(RichText::new(ui.localize("view")).heading());
+            ui.labeled_separator(RichText::new(ui.localize("settings-view")).heading());
             ui.end_row();
 
-            ui.label(ui.localize("show-filtered"))
-                .on_hover_text("Show filtered");
+            ui.label(ui.localize("settings-show_filtered"))
+                .on_hover_ui(|ui| {
+                    ui.label(ui.localize("settings-show_filtered.hover"));
+                });
             ui.checkbox(&mut self.unconfirmed.show_filtered, "");
             ui.end_row();
 
             // // Join
-            // ui.label(ui.localize("join"));
+            // ui.label(ui.localize("settings-join"));
             // ComboBox::from_id_salt("join")
             //     .selected_text(self.join.text())
             //     .show_ui(ui, |ui| {
@@ -309,11 +311,11 @@ impl Settings {
             // ui.end_row();
 
             ui.separator();
-            ui.labeled_separator(RichText::new(ui.localize("sort")).heading());
+            ui.labeled_separator(RichText::new(ui.localize("settings-sort")).heading());
             ui.end_row();
 
             // Sort
-            ui.label(ui.localize("sort"));
+            ui.label(ui.localize("settings-sort"));
             ComboBox::from_id_salt("sort")
                 .selected_text(self.unconfirmed.sort.text())
                 .show_ui(ui, |ui| {
@@ -330,7 +332,7 @@ impl Settings {
                 .on_hover_text(self.unconfirmed.sort.hover_text());
             ui.end_row();
             // Order
-            ui.label(ui.localize("order"));
+            ui.label(ui.localize("settings-order"));
             ComboBox::from_id_salt("order")
                 .selected_text(self.unconfirmed.order.text())
                 .show_ui(ui, |ui| {
@@ -354,11 +356,11 @@ impl Settings {
             if self.index.is_none() {
                 // Statistic
                 ui.separator();
-                ui.labeled_separator(RichText::new(ui.localize("statistic")).heading());
+                ui.labeled_separator(RichText::new(ui.localize("settings-statistic")).heading());
                 ui.end_row();
 
                 // https://numpy.org/devdocs/reference/generated/numpy.std.html
-                ui.label(ui.localize("ddof"));
+                ui.label(ui.localize("settings-ddof"));
                 ui.add(Slider::new(&mut self.unconfirmed.ddof, 0..=2));
                 ui.end_row();
             }

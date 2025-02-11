@@ -36,15 +36,19 @@ mod sources {
 
     pub(super) const EN: &[&str] = &[
         source!("/ftl/en/fatty_acids/byrdwell.com.ftl"),
+        source!("/ftl/en/headers.ftl"),
         source!("/ftl/en/menu.ftl"),
         source!("/ftl/en/names.ftl"),
         source!("/ftl/en/properties.ftl"),
+        source!("/ftl/en/settings.ftl"),
     ];
 
     pub(super) const RU: &[&str] = &[
         source!("/ftl/en/fatty_acids/byrdwell.com.ftl"),
+        source!("/ftl/ru/headers.ftl"),
         source!("/ftl/ru/menu.ftl"),
         source!("/ftl/ru/names.ftl"),
         source!("/ftl/ru/properties.ftl"),
+        source!("/ftl/ru/settings.ftl"),
     ];
 }

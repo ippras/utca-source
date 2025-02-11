@@ -33,10 +33,13 @@ impl Settings {
     }
 
     pub(crate) fn show(&mut self, ui: &mut Ui) {
-        Grid::new("configuration").show(ui, |ui| {
+        Grid::new("Configuration").show(ui, |ui| {
             // Precision
-            ui.label(ui.localize("precision"));
-            ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
+            let mut response = ui.label(ui.localize("settings-precision"));
+            response |= ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
+            response.on_hover_ui(|ui| {
+                ui.label(ui.localize("settings-precision.description"));
+            });
             ui.end_row();
 
             ui.separator();
@@ -44,15 +47,19 @@ impl Settings {
             ui.end_row();
 
             // Properties
-            ui.label(ui.localize("properties"));
-            ui.checkbox(&mut self.properties, "")
-                .on_hover_text(ui.localize("properties.description"));
+            let mut response = ui.label(ui.localize("settings-properties"));
+            response |= ui.checkbox(&mut self.properties, "");
+            response.on_hover_ui(|ui| {
+                ui.label(ui.localize("settings-properties.description"));
+            });
             ui.end_row();
 
             // Names
-            ui.label(ui.localize("names"));
-            ui.checkbox(&mut self.names, "")
-                .on_hover_text(ui.localize("names.description"));
+            let mut response = ui.label(ui.localize("settings-names"));
+            response |= ui.checkbox(&mut self.names, "");
+            response.on_hover_ui(|ui| {
+                ui.label(ui.localize("settings-names.description"));
+            });
         });
     }
 }
