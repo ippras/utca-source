@@ -6,7 +6,7 @@ use self::{
 };
 use super::PaneDelegate;
 use crate::app::{
-    computers::{CompositionComputed, CompositionKey},
+    computers::{CompositionComputed, CompositionKey, FattyAcidsComputed, FattyAcidsKey},
     text::Text,
 };
 use egui::{CursorIcon, Response, RichText, Ui, Window, util::hash};
@@ -52,9 +52,9 @@ impl Pane {
     }
 
     fn header_content(&mut self, ui: &mut Ui) -> Response {
-        let mut response = ui.heading(Self::icon()).on_hover_ui(|ui| {
-            ui.label(ui.localize("composition"));
-        });
+        let mut response = ui
+            .heading(Self::icon())
+            .on_hover_text(ui.localize("composition"));
         response |= ui.heading(self.title());
         response = response
             .on_hover_text(format!("{:x}", self.hash()))
@@ -80,16 +80,11 @@ impl Pane {
             }
         })
         .response
-        .on_hover_ui(|ui| {
-            ui.label(ui.localize("list"));
-        });
+        .on_hover_text(ui.localize("list"));
         ui.separator();
         // Reset
         if ui
             .button(RichText::new(ARROWS_CLOCKWISE).heading())
-            .on_hover_ui(|ui| {
-                ui.label(ui.localize("reset_table"));
-            })
             .clicked()
         {
             self.state.reset_table_state = true;
@@ -99,18 +94,13 @@ impl Pane {
             &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
-        .on_hover_ui(|ui| {
-            ui.label(ui.localize("resize_table"));
-        });
+        .on_hover_text(ui.localize("resize"));
         ui.separator();
         // Settings
         ui.toggle_value(
             &mut self.state.open_settings_window,
             RichText::new(GEAR).heading(),
-        )
-        .on_hover_ui(|ui| {
-            ui.label(ui.localize("settings"));
-        });
+        );
         ui.separator();
         // View
         ui.menu_button(RichText::new(self.state.view.icon()).heading(), |ui| {
@@ -120,9 +110,7 @@ impl Pane {
                 .on_hover_text(View::Table.hover_text());
         })
         .response
-        .on_hover_ui(|ui| {
-            ui.label(ui.localize(self.state.view.hover_text()));
-        });
+        .on_hover_text(self.state.view.hover_text());
         ui.end_row();
         ui.separator();
         response
@@ -150,7 +138,16 @@ impl Pane {
             .default_pos(ui.next_widget_position())
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| {
-                self.settings.show(ui, &self.target);
+                let data_frame = ui.memory_mut(|memory| {
+                    memory
+                        .caches
+                        .cache::<FattyAcidsComputed>()
+                        .get(FattyAcidsKey {
+                            frames: &self.source,
+                            settings: &self.settings,
+                        })
+                });
+                self.settings.show(ui, &data_frame);
                 let enabled = hash(&self.settings.confirmed) != hash(&self.settings.unconfirmed);
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.horizontal(|ui| {

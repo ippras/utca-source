@@ -490,9 +490,27 @@ fn meta(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyFram
 }
 
 fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
+    println!("lazy_frame: {}", lazy_frame.clone().collect().unwrap());
     if !settings.confirmed.show_filtered {
         let mut predicate = lit(true);
         for (index, group) in settings.confirmed.groups.iter().enumerate() {
+            // Key
+            for key in &group.filter.key {
+                match group.composition {
+                    MC | NC | UC => {
+                        let expr = col("Keys").struct_().field_by_index(index as _);
+                        predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
+                    }
+                    _ => {
+                        let expr = col("Keys")
+                            .struct_()
+                            .field_by_index(index as _)
+                            .triacylglycerol();
+                        predicate = predicate.and(expr.sn1().neq(lit(key.to_string())));
+                    }
+                }
+            }
+            // Value
             let mut expr = col("Values").arr().get(lit(index as u32), false);
             if settings.index.is_none() {
                 expr = expr.struct_().field_by_name("Mean");

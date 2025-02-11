@@ -12,7 +12,9 @@ use egui::{
 use egui_ext::LabeledSeparator;
 use egui_l20n::UiExt;
 use egui_phosphor::regular::{FUNNEL, FUNNEL_X, MINUS, PLUS, TRASH};
+use lipid::prelude::DataFrameExt;
 use polars::prelude::*;
+use polars_utils::format_list_truncated;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
@@ -47,7 +49,7 @@ impl Settings {
     }
 
     pub(crate) fn show(&mut self, ui: &mut Ui, data_frame: &DataFrame) {
-        Grid::new("composition").show(ui, |ui| {
+        Grid::new("Composition").show(ui, |ui| {
             // Precision
             ui.label(ui.localize("settings-precision"));
             ui.add(Slider::new(&mut self.precision, 0..=MAX_PRECISION));
@@ -138,44 +140,49 @@ impl Settings {
                         ));
                         // Key
                         let mut is_open = false;
-                        let hover =
-                            AnyValue::List(Series::new(PlSmallStr::EMPTY, &group.filter.key));
+                        // group.filter.key.len().to_string()
                         ui.horizontal(|ui| {
                             let id_salt = "FattyAcidsFilter";
                             ComboBox::from_id_salt(id_salt)
                                 // .height(ui.available_height())
-                                .selected_text(group.filter.key.len().to_string())
+                                .selected_text(format_list_truncated!(&group.filter.key, 2))
                                 .height(ui.available_height())
                                 .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| -> PolarsResult<()> {
-                                    // println!("data_frame: {data_frame}");
-                                    let key = data_frame[index + 1]
-                                        .struct_()
-                                        .unwrap()
-                                        .field_by_name("Key")
-                                        .unwrap()
-                                        .unique()
-                                        .unwrap()
-                                        .sort(Default::default())
-                                        .unwrap();
-                                    // println!("composition: {:?}", key.str_value(0));
-                                    for index in 0..key.len() {
-                                        if let Ok(key) = key.str_value(index) {
-                                            let key = key.to_string();
-                                            let contains = group.filter.key.contains(&key);
+                                    let column = match group.composition {
+                                        MC => &data_frame.fa()..mass(),
+                                        PMC => {}
+                                        SMC => {}
+                                        SC => {}
+                                        PSC => &data_frame["Label"],
+                                        SSC => {}
+                                        TC => {}
+                                        PTC => {}
+                                        STC => {}
+                                        _ => unimplemented!(),
+                                    };
+                                    for index in 0..column.len() {
+                                        if let Ok(label) = column.get(index) {
+                                            // let label = label.str_value().to_string();
+                                            let contains = group.filter.key.contains(&label);
                                             let mut selected = contains;
-                                            ui.toggle_value(&mut selected, &key);
+                                            ui.toggle_value(&mut selected, label.str_value());
                                             if selected && !contains {
-                                                group.filter.key.push(key);
+                                                group.filter.key.push(label.into_static());
                                             } else if !selected && contains {
-                                                group.filter.remove(&key);
+                                                group.filter.remove(&label);
                                             }
                                         }
                                     }
                                     Ok(())
                                 })
                                 .response
-                                .on_hover_text(hover.str_value());
+                                .on_hover_ui(|ui| {
+                                    ui.label(format_list_truncated!(
+                                        &group.filter.key,
+                                        group.filter.key.len()
+                                    ));
+                                });
                             let id = ui.make_persistent_id(Id::new(id_salt));
                             is_open = ComboBox::is_open(ui.ctx(), id);
                             if ui.button(TRASH).clicked() {
@@ -483,7 +490,7 @@ impl Method {
 /// Filter
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub(crate) struct Filter {
-    pub(crate) key: Vec<String>,
+    pub(crate) key: Vec<AnyValue<'static>>,
     pub(crate) value: f64,
 }
 
@@ -495,7 +502,7 @@ impl Filter {
         }
     }
 
-    fn remove(&mut self, target: &String) -> Option<String> {
+    fn remove(&mut self, target: &AnyValue) -> Option<AnyValue> {
         let position = self.key.iter().position(|source| source == target)?;
         Some(self.key.remove(position))
     }
@@ -505,13 +512,14 @@ impl Eq for Filter {}
 
 impl Hash for Filter {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
         self.value.ord().hash(state);
     }
 }
 
 impl PartialEq for Filter {
     fn eq(&self, other: &Self) -> bool {
-        self.value.ord() == other.value.ord()
+        self.key == other.key && self.value.ord() == other.value.ord()
     }
 }
 
