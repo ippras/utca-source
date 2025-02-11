@@ -1,30 +1,51 @@
-abbreviation = аббревиатура
-common_name = общее название
-edit = изменить
-experimental = экспериментальное значение
+properties = Свойства
+    .description = Показать свойства
+
 fatty_acid_mass = { mass } { -fatty_acid_term(genus: "genitive") }
 formula = формула
 mass = масса
 methyl_ester_mass = { mass } метилового эфира
 molar_mass = молярная { mass }
-names = названия
-names_description = показать устоявшиеся названия для жирных кислот
-properties = свойства
-properties_description = показать { properties }
-resize = изменить размер
-selectivity_factor = фактор селективности
 species = вид
-systematic_name = систематическое название
-theoretical = теоретическое значение
+
+experimental = эксперимент
+    .title_case = Эксперимент
+factors = факторы
+    .title_case = Факторы
+identifier = идентификатор
+    .abbreviation = ИД
+    .title_case = Идентификатор
+index = индекс
+    .title_case = Индекс
+label = метка
+    .title_case = Метка
+theoretical = расчеты
+    .title_case = Расчеты
 
 fatty_acid = { -fatty_acid_term }
     .abbreviation = ЖК
+    .title_case = Жирная кислота
 triacylglycerol = триацилглицерин
     .abbreviation = ТАГ
-diacylglycerol = диацилглицерин
+    .title_case = Триацилглицерин
+diacylglycerol = { $genus ->
+    *[nominative] диацилглицерин
+    [genitive] диацилглицерина
+}
     .abbreviation = ДАГ
-monoacylglycerol = моноацилглицерин
+    .title_case = Диацилглицерин
+monoacylglycerol = { $genus ->
+    *[nominative] моноацилглицерин
+    [genitive] моноацилглицерина
+}
     .abbreviation = МАГ
+    .title_case = Моноацилглицерин
+enrichment_factor = фактор обогощения
+    .abbreviation = ФО
+    .title_case = Фактор обогощения
+selectivity_factor = фактор селективности
+    .abbreviation = ФС
+    .title_case = Фактор селективности
 
 configuration = конфигурация
 calculation = вычисление

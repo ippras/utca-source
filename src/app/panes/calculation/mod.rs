@@ -49,9 +49,9 @@ impl Pane {
     }
 
     fn header_content(&mut self, ui: &mut Ui) -> Response {
-        let mut response = ui
-            .heading(Self::icon())
-            .on_hover_text(ui.localize("calculation"));
+        let mut response = ui.heading(Self::icon()).on_hover_ui(|ui| {
+            ui.label(ui.localize("calculation"));
+        });
         response |= ui.heading(self.title());
         response = response
             .on_hover_text(format!("{:x}", self.hash()))
@@ -75,11 +75,16 @@ impl Pane {
             }
         })
         .response
-        .on_hover_text(ui.localize("list"));
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("list"));
+        });
         ui.separator();
         // Reset
         if ui
             .button(RichText::new(ARROWS_CLOCKWISE).heading())
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("reset_table"));
+            })
             .clicked()
         {
             self.state.reset_table_state = true;
@@ -89,18 +94,25 @@ impl Pane {
             &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
-        .on_hover_text(ui.localize("resize"));
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("resize_table"));
+        });
         ui.separator();
         // Settings
         ui.toggle_value(
             &mut self.state.open_settings_window,
             RichText::new(GEAR).heading(),
-        );
+        )
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("settings"));
+        });
         ui.separator();
         // Composition
         if ui
             .button(RichText::new(INTERSECT_THREE).heading())
-            .on_hover_text(ui.localize("composition"))
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("composition"));
+            })
             .clicked()
         {
             let mut target = Vec::with_capacity(self.source.len());

@@ -89,11 +89,16 @@ impl Pane {
             }
         })
         .response
-        .on_hover_text(ui.localize("list"));
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("list"));
+        });
         ui.separator();
         // Reset
         if ui
             .button(RichText::new(ARROWS_CLOCKWISE).heading())
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("reset_table"));
+            })
             .clicked()
         {
             self.state.reset_table_state = true;
@@ -103,17 +108,23 @@ impl Pane {
             &mut self.settings.resizable,
             RichText::new(ARROWS_HORIZONTAL).heading(),
         )
-        .on_hover_text(ui.localize("resize"));
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("resize_table"));
+        });
         // Edit
         ui.toggle_value(&mut self.settings.editable, RichText::new(PENCIL).heading())
-            .on_hover_text(ui.localize("edit"));
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("edit"));
+            });
         // Clear
         ui.add_enabled_ui(
             self.settings.editable && self.frames[self.settings.index].data.height() > 0,
             |ui| {
                 if ui
                     .button(RichText::new(ERASER).heading())
-                    .on_hover_text(ui.localize("clear"))
+                    .on_hover_ui(|ui| {
+                        ui.label(ui.localize("clear_table"));
+                    })
                     .clicked()
                 {
                     let data_frame = &mut self.frames[self.settings.index].data;
@@ -125,7 +136,9 @@ impl Pane {
         ui.add_enabled_ui(self.settings.editable && self.frames.len() > 1, |ui| {
             if ui
                 .button(RichText::new(TRASH).heading())
-                .on_hover_text(ui.localize("delete"))
+                .on_hover_ui(|ui| {
+                    ui.label(ui.localize("delete_table"));
+                })
                 .clicked()
             {
                 self.frames.remove(self.settings.index);
@@ -138,12 +151,16 @@ impl Pane {
             &mut self.state.open_settings_window,
             RichText::new(GEAR).heading(),
         )
-        .on_hover_text(ui.localize("settings"));
+        .on_hover_ui(|ui| {
+            ui.label(ui.localize("settings"));
+        });
         ui.separator();
         // Save
         if ui
             .button(RichText::new(FLOPPY_DISK).heading())
-            .on_hover_text(ui.localize("save"))
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("save"));
+            })
             .on_hover_text(format!("{}.utca.ipc", self.title()))
             .clicked()
         {
@@ -155,7 +172,9 @@ impl Pane {
         // Calculation
         if ui
             .button(RichText::new(CALCULATOR).heading())
-            .on_hover_text(ui.localize("calculation"))
+            .on_hover_ui(|ui| {
+                ui.label(ui.localize("calculation"));
+            })
             .clicked()
         {
             ui.data_mut(|data| {

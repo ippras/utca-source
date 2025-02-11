@@ -4,7 +4,8 @@ use crate::app::{
     widgets::{FattyAcidWidget, FloatWidget, NamesWidget},
 };
 use egui::{Context, Frame, Id, Margin, Response, TextStyle, TextWrapMode, Ui};
-use egui_phosphor::regular::{MINUS, PLUS};
+use egui_l20n::UiExt;
+use egui_phosphor::regular::{HASH, MINUS, PLUS};
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
@@ -82,26 +83,48 @@ impl TableView<'_> {
             ui.style_mut().wrap_mode = Some(TextWrapMode::Truncate);
         }
         match (row, column) {
-            // Top
             (0, INDEX) => {
-                ui.heading("Index");
+                ui.heading(HASH).on_hover_ui(|ui| {
+                    ui.label(ui.localize("index.title_case"));
+                });
             }
             (0, LABEL) => {
-                ui.heading("Label");
+                ui.heading(ui.localize("label.title_case"));
             }
             (0, FA) => {
-                ui.heading("FA");
+                ui.heading(ui.localize("fatty_acid.abbreviation"))
+                    .on_hover_ui(|ui| {
+                        ui.label(ui.localize("fatty_acid.title_case"));
+                    });
             }
             (0, TAG) => {
-                ui.heading("TAG");
+                ui.heading(ui.localize("triacylglycerol.abbreviation"))
+                    .on_hover_ui(|ui| {
+                        ui.label(ui.localize("triacylglycerol.title_case"));
+                    });
             }
             (0, DAG1223) => {
-                ui.heading("DAG1223");
+                ui.heading(format!(
+                    "{}1223",
+                    ui.localize("diacylglycerol.abbreviation"),
+                ))
+                .on_hover_ui(|ui| {
+                    ui.label(format!(
+                        "sn-1,2/2,3 {}",
+                        ui.localize("diacylglycerol.title_case"),
+                    ));
+                });
             }
             (0, MAG2) => {
-                ui.heading("MAG2");
+                ui.heading(format!("{}2", ui.localize("monoacylglycerol.abbreviation")))
+                    .on_hover_ui(|ui| {
+                        ui.label(format!(
+                            "sn-2 {}",
+                            ui.localize("monoacylglycerol.title_case"),
+                        ));
+                    });
             }
-            _ => {} // _ => unreachable!(),
+            _ => {}
         };
     }
 

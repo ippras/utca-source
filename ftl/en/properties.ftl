@@ -1,30 +1,45 @@
-abbreviation = abbreviation
-common_name = common name
-edit = edit
-experimental = experimental
+properties = Properties
+    .description = Show properties
+
 fatty_acid_mass = { -fatty_acid_term } { mass }
 formula = formula
 mass = mass
 methyl_ester_mass = methyl ester { mass }
 molar_mass = molar { mass }
-names = names
-names_description = show names for fatty acids
-properties = properties
-properties_description = show { properties }
-resize = resize table columns
-selectivity_factor = selectivity factor
 species = species
-systematic_name = systematic name
+
+experimental = experimental
+    .title_case = Experimental
+factors = factors
+    .title_case = Factors
+identifier = identifier
+    .abbreviation = ID
+    .title_case = Identifier
+index = index
+    .title_case = Index
+label = label
+    .title_case = Label
 theoretical = theoretical
+    .title_case = Theoretical
 
 fatty_acid = { -fatty_acid_term }
     .abbreviation = FA
+    .title_case = Fatty acid
 triacylglycerol = triacylglycerol
     .abbreviation = TAG
+    .title_case = Triacylglycerol
 diacylglycerol = diacylglycerol
     .abbreviation = DAG
+    .title_case = Diacylglycerol
 monoacylglycerol = monoacylglycerol
     .abbreviation = MAG
+    .title_case = Monoacylglycerol
+enrichment_factor = enrichment factor
+    .abbreviation = EF
+    .title_case = Enrichment factor
+selectivity_factor = selectivity factor
+    .abbreviation = SF
+    .title_case = Selectivity factor
 
 equivalent_carbon_number_composition = equivalent carbon number composition
     .abbreviation = NC

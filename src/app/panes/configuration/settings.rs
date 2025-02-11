@@ -46,13 +46,13 @@ impl Settings {
             // Properties
             ui.label(ui.localize("properties"));
             ui.checkbox(&mut self.properties, "")
-                .on_hover_text(ui.localize("properties_description"));
+                .on_hover_text(ui.localize("properties.description"));
             ui.end_row();
 
             // Names
             ui.label(ui.localize("names"));
             ui.checkbox(&mut self.names, "")
-                .on_hover_text(ui.localize("names_description"));
+                .on_hover_text(ui.localize("names.description"));
         });
     }
 }

@@ -15,7 +15,7 @@ use egui::{
     warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
-use egui_l20n::{Localization, UiExt as _};
+use egui_l20n::{LanguageIdentifier, Localization, UiExt as _};
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
@@ -185,7 +185,7 @@ impl App {
 
     // Left panel
     fn left_panel(&mut self, ctx: &Context) {
-        SidePanel::left("left_panel")
+        SidePanel::left("LeftPanel")
             .resizable(true)
             .show_animated(ctx, self.left_panel, |ui| {
                 ScrollArea::vertical().show(ui, |ui| {
@@ -196,7 +196,7 @@ impl App {
 
     // Top panel
     fn top_panel(&mut self, ctx: &Context) {
-        TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        TopBottomPanel::top("TopPanel").show(ctx, |ui| {
             bar(ui, |ui| {
                 ScrollArea::horizontal().show(ui, |ui| {
                     // Left panel
@@ -204,7 +204,9 @@ impl App {
                         &mut self.left_panel,
                         RichText::new(SIDEBAR_SIMPLE).size(ICON_SIZE),
                     )
-                    .on_hover_text(ui.localize("LeftPanel"));
+                    .on_hover_ui(|ui| {
+                        ui.label(ui.localize("left_panel"));
+                    });
                     ui.separator();
                     // Light/Dark
                     ui.light_dark_button(ICON_SIZE);
@@ -212,7 +214,9 @@ impl App {
                     // Reset app
                     if ui
                         .button(RichText::new(TRASH).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("reset_application"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("reset_application"));
+                        })
                         .clicked()
                     {
                         *self = Default::default();
@@ -222,30 +226,37 @@ impl App {
                     // Reset app
                     if ui
                         .button(RichText::new(ARROWS_CLOCKWISE).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("reset_gui"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("reset_gui"));
+                        })
                         .clicked()
                     {
-                        let mut data = IdTypeMap::default();
-                        let caches = ui.memory_mut(|memory| {
+                        // Cache
+                        let caches = ui.memory_mut(|memory| memory.caches.clone());
+                        // Data
+                        let data = ui.memory_mut(|memory| {
+                            let mut data = IdTypeMap::default();
                             // Github token
                             if let Some(github_token) =
                                 memory.data.get_persisted::<String>(*GITHUB_TOKEN)
                             {
                                 data.insert_persisted(*GITHUB_TOKEN, github_token)
                             }
-                            // Cache
-                            memory.caches.clone()
+                            data
                         });
                         ui.memory_mut(|memory| {
                             memory.caches = caches;
                             memory.data = data;
                         });
+                        ui.ctx().set_localizations();
                         self.context(ctx);
                     }
                     ui.separator();
                     if ui
                         .button(RichText::new(SQUARE_SPLIT_VERTICAL).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("vertical"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("vertical"));
+                        })
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -256,7 +267,9 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(SQUARE_SPLIT_HORIZONTAL).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("horizontal"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("horizontal"));
+                        })
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -267,7 +280,9 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(GRID_FOUR).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("grid"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("grid"));
+                        })
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -278,7 +293,9 @@ impl App {
                     }
                     if ui
                         .button(RichText::new(TABS).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("tabs"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("tabs"));
+                        })
                         .clicked()
                     {
                         if let Some(id) = self.tree.root {
@@ -322,7 +339,9 @@ impl App {
                     // });
                     if ui
                         .button(RichText::new(GEAR).size(ICON_SIZE))
-                        .on_hover_text(ui.localize("settings"))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("settings"));
+                        })
                         .clicked()
                     {
                         self.settings.open = !self.settings.open;
@@ -333,6 +352,9 @@ impl App {
                     ui.add_enabled_ui(!frames.is_empty(), |ui| {
                         if ui
                             .button(RichText::new(ConfigurationPane::icon()).size(ICON_SIZE))
+                            .on_hover_ui(|ui| {
+                                ui.label(ui.localize("configuration"));
+                            })
                             .clicked()
                         {
                             let pane = Pane::Configuration(ConfigurationPane::new(frames));
@@ -340,7 +362,13 @@ impl App {
                         }
                     });
                     // Create
-                    if ui.button(RichText::new(PLUS).size(ICON_SIZE)).clicked() {
+                    if ui
+                        .button(RichText::new(PLUS).size(ICON_SIZE))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("create"));
+                        })
+                        .clicked()
+                    {
                         let data_frame = DataFrame::empty_with_schema(&SCHEMA);
                         self.data.add(MetaDataFrame {
                             meta: Metadata {
@@ -356,6 +384,9 @@ impl App {
                     // Load
                     if ui
                         .button(RichText::new(CLOUD_ARROW_DOWN).size(ICON_SIZE))
+                        .on_hover_ui(|ui| {
+                            ui.label(ui.localize("load"));
+                        })
                         .clicked()
                     {
                         self.github.toggle(ui);
@@ -366,14 +397,18 @@ impl App {
                         // About
                         if ui
                             .button(RichText::new(INFO).size(ICON_SIZE))
-                            .on_hover_text("About window")
+                            .on_hover_ui(|ui| {
+                                ui.label(ui.localize("about"));
+                            })
                             .clicked()
                         {
                             self.about.open ^= true;
                         }
                         ui.separator();
                         // Locale
-                        ui.locale_button().on_hover_text(ui.localize("language"));
+                        ui.locale_button().on_hover_ui(|ui| {
+                            ui.label(ui.localize("language"));
+                        });
                         ui.separator();
                     });
                 });
