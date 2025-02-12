@@ -73,3 +73,7 @@ settings-round_mass = Round mass
 settings-view = View
 settings-show_filtered = Show filtered
     .hover = Show filtered values
+settings-filter = { $case ->
+    *[title] Filter
+    [lower] filter
+}

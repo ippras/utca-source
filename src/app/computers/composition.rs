@@ -1,6 +1,8 @@
 use crate::{
     app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
-    special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
+    special::composition::{
+        ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+    },
 };
 use egui::util::cache::{ComputerMut, FrameCache};
 use lipid::{fatty_acid::Kind, prelude::*};
@@ -388,15 +390,15 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
                             .round(settings.confirmed.round_mass)
                     })
                     .alias("SMC"),
-                NC => col("FattyAcid").tag().ecn().alias("NC"),
-                PNC => col("FattyAcid")
+                ECNC => col("FattyAcid").tag().ecn().alias("NC"),
+                PECNC => col("FattyAcid")
                     .tag()
                     .positional(
                         |expr| expr.fa().ecn(),
                         PermutationOptions::default().map(true),
                     )
                     .alias("PNC"),
-                SNC => col("FattyAcid")
+                SECNC => col("FattyAcid")
                     .tag()
                     .map(|expr| expr.fa().ecn())
                     .alias("SNC"),
@@ -497,16 +499,29 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
             // Key
             for key in &group.filter.key {
                 match group.composition {
-                    MC | NC | UC => {
-                        let expr = col("Keys").struct_().field_by_index(index as _);
-                        predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
+                    SC => {
+                        let expr = col("Keys").struct_().field_by_index(index as _).tag();
+                        predicate = predicate
+                            .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))))
+                            .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))))
+                            .and(expr.sn3().neq(lit(LiteralValue::from(key.clone()))));
                     }
+                    PSC => {
+                        let expr = col("Keys").struct_().field_by_index(index as _).tag();
+                        predicate = predicate
+                            .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))))
+                            .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))));
+                    }
+                    // MC | ECNC | UC => {
+                    //     let expr = col("Keys").struct_().field_by_index(index as _);
+                    //     predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
+                    // }
                     _ => {
-                        let expr = col("Keys")
-                            .struct_()
-                            .field_by_index(index as _)
-                            .triacylglycerol();
-                        predicate = predicate.and(expr.sn1().neq(lit(key.to_string())));
+                        // let expr = col("Keys")
+                        //     .struct_()
+                        //     .field_by_index(index as _)
+                        //     .triacylglycerol();
+                        // predicate = predicate.and(expr.sn1().neq(lit(key.to_string())));
                     }
                 }
             }

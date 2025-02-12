@@ -1,7 +1,7 @@
 use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
-    special::composition::{MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC},
+    special::composition::{MC, ECNC, PMC, PECNC, PSC, PTC, PUC, SC, SMC, SECNC, SSC, STC, SUC, TC, UC},
     utils::polars::{tag_map, r#type},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
@@ -149,7 +149,7 @@ impl TableView<'_> {
                             let key = tag_map(round(self.settings.precision as _))(key)?;
                             ui.label(key.str_value(row)?);
                         }
-                        NC | PNC | SNC => {
+                        ECNC | PECNC | SECNC => {
                             ui.label(key.str_value(row)?);
                         }
                         TC | PTC | STC => {

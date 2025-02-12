@@ -2,22 +2,26 @@ use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
     special::composition::{
-        Composition, MC, NC, PMC, PNC, PSC, PTC, PUC, SC, SMC, SNC, SSC, STC, SUC, TC, UC,
+        Composition, ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
     },
 };
 use egui::{
-    ComboBox, DragValue, Grid, Id, Key, KeyboardShortcut, Modifiers, PopupCloseBehavior, RichText,
-    Slider, SliderClamping, Ui, emath::Float,
+    ComboBox, CursorIcon, DragValue, Grid, Id, Key, KeyboardShortcut, Modifiers,
+    PopupCloseBehavior, Response, RichText, ScrollArea, Sense, Separator, Sides, Slider,
+    SliderClamping, TextStyle, TopBottomPanel, Ui, Widget, emath::Float, menu::bar,
 };
-use egui_ext::LabeledSeparator;
+use egui_ext::{ClickedLabel, LabeledSeparator};
+use egui_extras::{Table, TableBuilder};
 use egui_l20n::UiExt;
-use egui_phosphor::regular::{FUNNEL, FUNNEL_X, MINUS, PLUS, TRASH};
+use egui_phosphor::regular::{FUNNEL, FUNNEL_X, HASH, MINUS, PLUS, TRASH};
+use filter::FilterWidget;
 use lipid::{
     fatty_acid::{FattyAcidExt as _, Kind::Rcooh, mass::Mass},
     prelude::DataFrameExt,
+    triacylglycerol::Stereospecificity,
 };
 use polars::prelude::*;
-use polars_utils::format_list_truncated;
+use polars_utils::{format_list_truncated, itertools::Itertools};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::VecDeque,
@@ -91,12 +95,12 @@ impl Settings {
                     ComboBox::from_id_salt(ui.next_auto_id())
                         .selected_text(group.composition.text())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut group.composition, NC, NC.text())
-                                .on_hover_text(NC.hover_text());
-                            ui.selectable_value(&mut group.composition, PNC, PNC.text())
-                                .on_hover_text(PNC.hover_text());
-                            ui.selectable_value(&mut group.composition, SNC, SNC.text())
-                                .on_hover_text(SNC.hover_text());
+                            ui.selectable_value(&mut group.composition, ECNC, ECNC.text())
+                                .on_hover_text(ECNC.hover_text());
+                            ui.selectable_value(&mut group.composition, PECNC, PECNC.text())
+                                .on_hover_text(PECNC.hover_text());
+                            ui.selectable_value(&mut group.composition, SECNC, SECNC.text())
+                                .on_hover_text(SECNC.hover_text());
                             ui.separator();
                             ui.selectable_value(&mut group.composition, MC, MC.text())
                                 .on_hover_text(MC.hover_text());
@@ -129,110 +133,223 @@ impl Settings {
                         .response
                         .on_hover_text(group.composition.hover_text());
                     // Filter
-                    let title = if group.filter == Default::default() {
-                        FUNNEL
-                    } else {
-                        ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
-                        FUNNEL_X
-                    };
-                    ui.menu_button(title, |ui| {
-                        ui.label(format!(
-                            "{} {}",
-                            group.composition.text(),
-                            ui.localize("settings-filter"),
-                        ));
-                        // Key
-                        let mut is_open = false;
-                        // group.filter.key.len().to_string()
-                        ui.horizontal(|ui| {
-                            let id_salt = "FattyAcidsFilter";
-                            ComboBox::from_id_salt(id_salt)
-                                // .height(ui.available_height())
-                                .selected_text(format_list_truncated!(&group.filter.key, 2))
-                                .height(ui.available_height())
-                                .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
-                                .show_ui(ui, |ui| -> PolarsResult<()> {
-                                    let mut values = match group.composition {
-                                        MC | PMC | SMC => data_frame
-                                            .fa()
-                                            .into_iter()
-                                            .filter_map(|fatty_acid| Some(fatty_acid?.mass(Rcooh)))
-                                            .collect(),
-                                        SC | PSC | SSC => {
-                                            data_frame["Label"].as_materialized_series().clone()
-                                        }
-                                        TC | PTC | STC => data_frame
-                                            .fa()
-                                            .into_iter()
-                                            .filter_map(|fatty_acid| {
-                                                Some(fatty_acid?.is_unsaturated())
-                                            })
-                                            .collect(),
-                                        _ => unimplemented!(),
-                                    };
-                                    values = values.unique()?.sort(Default::default())?;
-                                    for value in values.iter() {
-                                        // let value = match group.composition {
-                                        //     MC | PMC | SMC => AnyValue::Float64(
-                                        //         data_frame.fa().get(index)?.unwrap().mass(Rcooh),
-                                        //     ),
-                                        //     SC | PSC | SSC => data_frame["Label"].get(index)?,
-                                        //     TC | PTC | STC => AnyValue::Boolean(
-                                        //         data_frame
-                                        //             .fa()
-                                        //             .get(index)?
-                                        //             .unwrap()
-                                        //             .is_unsaturated(),
-                                        //     ),
-                                        //     _ => unimplemented!(),
-                                        // };
-                                        let contains = group.filter.key.contains(&value);
-                                        let mut selected = contains;
-                                        ui.toggle_value(&mut selected, value.str_value());
-                                        if selected && !contains {
-                                            group.filter.key.push(value.into_static());
-                                        } else if !selected && contains {
-                                            group.filter.remove(&value);
-                                        }
-                                    }
-                                    Ok(())
-                                })
-                                .response
-                                .on_hover_ui(|ui| {
-                                    ui.label(format_list_truncated!(
-                                        &group.filter.key,
-                                        group.filter.key.len()
-                                    ));
-                                });
-                            let id = ui.make_persistent_id(Id::new(id_salt));
-                            is_open = ComboBox::is_open(ui.ctx(), id);
-                            if ui.button(TRASH).clicked() {
-                                group.filter.key = Vec::new();
-                            }
-                        });
-                        if is_open {
-                            ui.add_space(100.0 - ui.spacing().interact_size.y);
-                        }
-                        // Value
-                        ui.add(
-                            Slider::new(&mut group.filter.value, 0.0..=1.0)
-                                .clamping(SliderClamping::Always)
-                                .logarithmic(true)
-                                .custom_formatter(|mut value, _| {
-                                    if self.percent {
-                                        value *= 100.0;
-                                    }
-                                    AnyValue::Float64(value).to_string()
-                                })
-                                .custom_parser(|value| {
-                                    let mut parsed = value.parse::<f64>().ok()?;
-                                    if self.percent {
-                                        parsed /= 100.0;
-                                    }
-                                    Some(parsed)
-                                }),
-                        );
-                    });
+                    ui.add(
+                        FilterWidget::new(&mut group.filter, &group.composition, data_frame)
+                            .percent(self.percent),
+                    );
+                    // let title = if group.filter == Default::default() {
+                    //     FUNNEL_X
+                    // } else {
+                    //     ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
+                    //     FUNNEL
+                    // };
+                    // ui.menu_button(title, |ui| -> PolarsResult<()> {
+                    //     ui.heading(format!(
+                    //         "{} {}",
+                    //         group.composition.text(),
+                    //         ui.localize("settings-filter?case=lower"),
+                    //     ));
+                    //     let column = match group.composition {
+                    //         ECNC | PECNC | SECNC => &data_frame["EquivalentCarbonNumber"],
+                    //         MC | PMC | SMC => &data_frame["Mass"],
+                    //         SC | PSC | SSC => &data_frame["Species"],
+                    //         TC | PTC | STC => &data_frame["Type"],
+                    //         UC | PUC | SUC => &data_frame["Unsaturation"],
+                    //     };
+                    //     let column = column.unique()?.sort(Default::default())?;
+                    //     let stereospecificity = group.composition.stereospecificity;
+                    //     // Key
+                    //     ui.labeled_separator("Key");
+                    //     let max_scroll_height = ui.spacing().combo_height;
+                    //     let height = TextStyle::Body
+                    //         .resolve(ui.style())
+                    //         .size
+                    //         .max(ui.spacing().interact_size.y);
+                    //     TableBuilder::new(ui)
+                    //         .column(egui_extras::Column::auto().auto_size_this_frame(true))
+                    //         .columns(
+                    //             egui_extras::Column::remainder(),
+                    //             match stereospecificity {
+                    //                 None => 1,
+                    //                 Some(Stereospecificity::Positional) => 2,
+                    //                 Some(Stereospecificity::Stereo) => 3,
+                    //             },
+                    //         )
+                    //         .max_scroll_height(max_scroll_height)
+                    //         .vscroll(true)
+                    //         .header(height, |mut header| {
+                    //             header.col(|ui| {
+                    //                 ui.heading(HASH);
+                    //             });
+                    //             match stereospecificity {
+                    //                 None => {
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-1,2,3");
+                    //                     });
+                    //                 }
+                    //                 Some(Stereospecificity::Positional) => {
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-1,3");
+                    //                     });
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-2");
+                    //                     });
+                    //                 }
+                    //                 Some(Stereospecificity::Stereo) => {
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-1");
+                    //                     });
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-2");
+                    //                     });
+                    //                     header.col(|ui| {
+                    //                         ui.heading("SN-3");
+                    //                     });
+                    //                 }
+                    //             }
+                    //         })
+                    //         .body(|body| {
+                    //             body.rows(height, column.len(), |mut row| {
+                    //                 let index = row.index();
+                    //                 row.col(|ui| {
+                    //                     ui.label(index.to_string());
+                    //                 });
+                    //                 let mut response = None;
+
+                    //                 match stereospecificity {
+                    //                     None => {
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                     }
+                    //                     Some(Stereospecificity::Positional) => {
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                     }
+                    //                     Some(Stereospecificity::Stereo) => {
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                         row.col(|ui| {
+                    //                             let value = column.get(index).unwrap();
+                    //                             let contains = group.filter.key.contains(&value);
+                    //                             let mut selected = contains;
+                    //                             let _ = response.insert(ui.toggle_value(
+                    //                                 &mut selected,
+                    //                                 value.str_value(),
+                    //                             ));
+                    //                             if selected && !contains {
+                    //                                 group.filter.key.push(value.into_static());
+                    //                             } else if !selected && contains {
+                    //                                 group.filter.remove(&value);
+                    //                             }
+                    //                         });
+                    //                     }
+                    //                 }
+                    //                 let response = response.map_or_else(
+                    //                     || row.response(),
+                    //                     |response| response | row.response(),
+                    //                 );
+                    //                 response.context_menu(|ui| {
+                    //                     if ui.button(format!("{FUNNEL} Select all")).clicked() {
+                    //                         group.filter.key = column
+                    //                             .as_materialized_series()
+                    //                             .iter()
+                    //                             .map(AnyValue::into_static)
+                    //                             .collect();
+                    //                         ui.close_menu();
+                    //                     }
+                    //                     if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
+                    //                         group.filter.key = Vec::new();
+                    //                         ui.close_menu();
+                    //                     }
+                    //                 });
+                    //             });
+                    //         });
+                    //     // Value
+                    //     ui.labeled_separator("Value");
+                    //     ui.add(
+                    //         Slider::new(&mut group.filter.value, 0.0..=1.0)
+                    //             .clamping(SliderClamping::Always)
+                    //             .logarithmic(true)
+                    //             .custom_formatter(|mut value, _| {
+                    //                 if self.percent {
+                    //                     value *= 100.0;
+                    //                 }
+                    //                 AnyValue::Float64(value).to_string()
+                    //             })
+                    //             .custom_parser(|value| {
+                    //                 let mut parsed = value.parse::<f64>().ok()?;
+                    //                 if self.percent {
+                    //                     parsed /= 100.0;
+                    //                 }
+                    //                 Some(parsed)
+                    //             }),
+                    //     );
+                    //     Ok(())
+                    // });
                 });
                 ui.end_row();
                 index += 1;
@@ -605,3 +722,5 @@ impl Group {
         }
     }
 }
+
+mod filter;

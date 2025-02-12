@@ -1,5 +1,12 @@
 use crate::app::panes::composition::settings::Settings;
 use egui::util::cache::{ComputerMut, FrameCache};
+use lipid::{
+    fatty_acid::{
+        Kind::Rcooh,
+        polars::{ExprExt, expr::mass::Mass},
+    },
+    prelude::EquivalentCarbonNumber,
+};
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use polars_ext::ExprExt as _;
@@ -15,30 +22,43 @@ pub(crate) struct Computer;
 impl Computer {
     fn try_compute(&mut self, key: Key) -> PolarsResult<Value> {
         let settings = key.settings.clone();
-        let lazy_frame = match settings.index {
-            Some(index) => key.frames[index].data.clone().lazy(),
+        let select = |data_frame: &DataFrame| {
+            data_frame
+                .clone()
+                .lazy()
+                .select([col("FattyAcid"), col("Label").alias("Species")])
+        };
+        let mut lazy_frame = match settings.index {
+            Some(index) => select(&key.frames[index].data),
             None => {
                 let hash = |data_frame: &DataFrame| {
-                    data_frame.clone().lazy().select([
-                        as_struct(vec![col("Label"), col("FattyAcid")]).hash(),
-                        col("Label"),
-                        col("FattyAcid"),
-                    ])
+                    select(data_frame)
+                        .with_column(as_struct(vec![col("FattyAcid"), col("Species")]).hash())
                 };
                 let mut lazy_frame = hash(&key.frames[0].data);
                 for frame in &key.frames[1..] {
-                    lazy_frame = lazy_frame.join(
+                    lazy_frame = lazy_frame.join( 
                         hash(&frame.data),
-                        [col("Hash"), col("Label"), col("FattyAcid")],
-                        [col("Hash"), col("Label"), col("FattyAcid")],
+                        [col("Hash"), col("FattyAcid"), col("Species")],
+                        [col("Hash"), col("FattyAcid"), col("Species")],
                         JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
                     );
                 }
                 lazy_frame = lazy_frame.drop([col("Hash")]);
-                lazy_frame = lazy_frame.sort(["Label", "FattyAcid"], Default::default());
                 lazy_frame
             }
         };
+        lazy_frame = lazy_frame.with_columns([
+            col("FattyAcid").fa().ecn().alias("EquivalentCarbonNumber"),
+            col("FattyAcid").fa().mass(Rcooh).alias("Mass"),
+            col("FattyAcid").fa().is_saturated().alias("Type"),
+            col("FattyAcid")
+                .fa()
+                .unsaturated()
+                .sum()
+                .alias("Unsaturation"),
+        ]);
+        // lazy_frame = lazy_frame.sort(["Species", "FattyAcid"], Default::default());
         lazy_frame.collect()
     }
 }

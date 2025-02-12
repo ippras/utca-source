@@ -13,15 +13,15 @@ pub const SMC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Mass,
 };
-pub const NC: Composition = Composition {
+pub const ECNC: Composition = Composition {
     stereospecificity: None,
     kind: Kind::Ecn,
 };
-pub const PNC: Composition = Composition {
+pub const PECNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Positional),
     kind: Kind::Ecn,
 };
-pub const SNC: Composition = Composition {
+pub const SECNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Ecn,
 };
