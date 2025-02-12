@@ -12,7 +12,10 @@ use egui::{
 use egui_ext::LabeledSeparator;
 use egui_l20n::UiExt;
 use egui_phosphor::regular::{FUNNEL, FUNNEL_X, MINUS, PLUS, TRASH};
-use lipid::prelude::DataFrameExt;
+use lipid::{
+    fatty_acid::{FattyAcidExt as _, Kind::Rcooh, mass::Mass},
+    prelude::DataFrameExt,
+};
 use polars::prelude::*;
 use polars_utils::format_list_truncated;
 use serde::{Deserialize, Serialize};
@@ -149,29 +152,47 @@ impl Settings {
                                 .height(ui.available_height())
                                 .close_behavior(PopupCloseBehavior::CloseOnClickOutside)
                                 .show_ui(ui, |ui| -> PolarsResult<()> {
-                                    let column = match group.composition {
-                                        MC => &data_frame.fa()..mass(),
-                                        PMC => {}
-                                        SMC => {}
-                                        SC => {}
-                                        PSC => &data_frame["Label"],
-                                        SSC => {}
-                                        TC => {}
-                                        PTC => {}
-                                        STC => {}
+                                    let mut values = match group.composition {
+                                        MC | PMC | SMC => data_frame
+                                            .fa()
+                                            .into_iter()
+                                            .filter_map(|fatty_acid| Some(fatty_acid?.mass(Rcooh)))
+                                            .collect(),
+                                        SC | PSC | SSC => {
+                                            data_frame["Label"].as_materialized_series().clone()
+                                        }
+                                        TC | PTC | STC => data_frame
+                                            .fa()
+                                            .into_iter()
+                                            .filter_map(|fatty_acid| {
+                                                Some(fatty_acid?.is_unsaturated())
+                                            })
+                                            .collect(),
                                         _ => unimplemented!(),
                                     };
-                                    for index in 0..column.len() {
-                                        if let Ok(label) = column.get(index) {
-                                            // let label = label.str_value().to_string();
-                                            let contains = group.filter.key.contains(&label);
-                                            let mut selected = contains;
-                                            ui.toggle_value(&mut selected, label.str_value());
-                                            if selected && !contains {
-                                                group.filter.key.push(label.into_static());
-                                            } else if !selected && contains {
-                                                group.filter.remove(&label);
-                                            }
+                                    values = values.unique()?.sort(Default::default())?;
+                                    for value in values.iter() {
+                                        // let value = match group.composition {
+                                        //     MC | PMC | SMC => AnyValue::Float64(
+                                        //         data_frame.fa().get(index)?.unwrap().mass(Rcooh),
+                                        //     ),
+                                        //     SC | PSC | SSC => data_frame["Label"].get(index)?,
+                                        //     TC | PTC | STC => AnyValue::Boolean(
+                                        //         data_frame
+                                        //             .fa()
+                                        //             .get(index)?
+                                        //             .unwrap()
+                                        //             .is_unsaturated(),
+                                        //     ),
+                                        //     _ => unimplemented!(),
+                                        // };
+                                        let contains = group.filter.key.contains(&value);
+                                        let mut selected = contains;
+                                        ui.toggle_value(&mut selected, value.str_value());
+                                        if selected && !contains {
+                                            group.filter.key.push(value.into_static());
+                                        } else if !selected && contains {
+                                            group.filter.remove(&value);
                                         }
                                     }
                                     Ok(())
