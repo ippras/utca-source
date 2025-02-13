@@ -1,3 +1,5 @@
+pub(crate) use self::filter::{Filter, FilterWidget};
+
 use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
@@ -11,7 +13,6 @@ use egui::{
 use egui_ext::LabeledSeparator;
 use egui_l20n::UiExt;
 use egui_phosphor::regular::{MINUS, PLUS};
-use filter::FilterWidget;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -403,42 +404,6 @@ impl Method {
     }
 }
 
-/// Filter
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub(crate) struct Filter {
-    pub(crate) key: Vec<AnyValue<'static>>,
-    pub(crate) value: f64,
-}
-
-impl Filter {
-    pub(crate) const fn new() -> Self {
-        Self {
-            key: Vec::new(),
-            value: 0.0,
-        }
-    }
-
-    fn remove(&mut self, target: &AnyValue) -> Option<AnyValue> {
-        let position = self.key.iter().position(|source| source == target)?;
-        Some(self.key.remove(position))
-    }
-}
-
-impl Eq for Filter {}
-
-impl Hash for Filter {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.hash(state);
-        self.value.ord().hash(state);
-    }
-}
-
-impl PartialEq for Filter {
-    fn eq(&self, other: &Self) -> bool {
-        self.key == other.key && self.value.ord() == other.value.ord()
-    }
-}
-
 /// Sort
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub(crate) enum Sort {
@@ -493,7 +458,7 @@ pub(crate) struct Group {
 }
 
 impl Group {
-    pub(crate) const fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             composition: Composition::new(),
             filter: Filter::new(),

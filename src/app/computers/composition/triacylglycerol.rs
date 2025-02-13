@@ -5,7 +5,7 @@ use crate::{
     },
 };
 use egui::util::cache::{ComputerMut, FrameCache};
-use lipid::{fatty_acid::Kind, prelude::*};
+use lipid::prelude::*;
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use polars_ext::{ExprExt as _, column, functions::round};
@@ -489,31 +489,60 @@ fn filter(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
         let mut predicate = lit(true);
         for (index, group) in settings.confirmed.groups.iter().enumerate() {
             // Key
-            for key in &group.filter.key {
+            for (key, value) in &group.filter.key {
+                // match group.composition {
+                //     SC => {
+                //         let expr = col("Keys").struct_().field_by_index(index as _).tag();
+                //         if value[0] {
+                //             predicate = predicate
+                //                 .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))));
+                //         }
+                //         if value[1] {
+                //             predicate = predicate
+                //                 .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))));
+                //         }
+                //         if value[2] {
+                //             predicate = predicate
+                //                 .and(expr.clone().sn3().neq(lit(LiteralValue::from(key.clone()))));
+                //         }
+                //     }
+                //     PSC => {
+                //         let expr = col("Keys").struct_().field_by_index(index as _).tag();
+                //         predicate = predicate
+                //             .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))))
+                //             .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))));
+                //     }
+                //     // MC | ECNC | UC => {
+                //     //     let expr = col("Keys").struct_().field_by_index(index as _);
+                //     //     predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
+                //     // }
+                //     _ => {
+                //         // let expr = col("Keys")
+                //         //     .struct_()
+                //         //     .field_by_index(index as _)
+                //         //     .triacylglycerol();
+                //         // predicate = predicate.and(expr.sn1().neq(lit(key.to_string())));
+                //     }
+                // }
+                let expr = col("Keys").struct_().field_by_index(index as _);
                 match group.composition {
-                    SC => {
-                        let expr = col("Keys").struct_().field_by_index(index as _).tag();
-                        predicate = predicate
-                            .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))))
-                            .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))))
-                            .and(expr.sn3().neq(lit(LiteralValue::from(key.clone()))));
+                    MC => {
+                        predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
                     }
-                    PSC => {
-                        let expr = col("Keys").struct_().field_by_index(index as _).tag();
-                        predicate = predicate
-                            .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))))
-                            .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))));
-                    }
-                    // MC | ECNC | UC => {
-                    //     let expr = col("Keys").struct_().field_by_index(index as _);
-                    //     predicate = predicate.and(expr.neq(lit(LiteralValue::from(key.clone()))));
-                    // }
                     _ => {
-                        // let expr = col("Keys")
-                        //     .struct_()
-                        //     .field_by_index(index as _)
-                        //     .triacylglycerol();
-                        // predicate = predicate.and(expr.sn1().neq(lit(key.to_string())));
+                        let expr = expr.tag();
+                        if value[0] {
+                            predicate = predicate
+                                .and(expr.clone().sn1().neq(lit(LiteralValue::from(key.clone()))));
+                        }
+                        if value[1] {
+                            predicate = predicate
+                                .and(expr.clone().sn2().neq(lit(LiteralValue::from(key.clone()))));
+                        }
+                        if value[2] {
+                            predicate = predicate
+                                .and(expr.clone().sn3().neq(lit(LiteralValue::from(key.clone()))));
+                        }
                     }
                 }
             }

@@ -1,10 +1,14 @@
 use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
-    special::composition::{MC, ECNC, PMC, PECNC, PSC, PTC, PUC, SC, SMC, SECNC, SSC, STC, SUC, TC, UC},
+    special::composition::{
+        ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+    },
     utils::polars::{tag_map, r#type},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
+use egui_l20n::UiExt as _;
+use egui_phosphor::regular::HASH;
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
@@ -81,7 +85,9 @@ impl TableView<'_> {
     fn header_cell_content_ui(&mut self, ui: &mut Ui, row: usize, column: Range<usize>) {
         match (row, column) {
             (0, INDEX) => {
-                ui.heading("Index");
+                ui.heading(HASH).on_hover_ui(|ui| {
+                    ui.label(ui.localize("index"));
+                });
             }
             (0, _) => {
                 ui.heading("Compositions");
