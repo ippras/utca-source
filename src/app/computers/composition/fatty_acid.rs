@@ -1,12 +1,6 @@
 use crate::app::panes::composition::settings::Settings;
 use egui::util::cache::{ComputerMut, FrameCache};
-use lipid::{
-    fatty_acid::{
-        Kind::Rcooh,
-        polars::{ExprExt, expr::mass::Mass},
-    },
-    prelude::EquivalentCarbonNumber,
-};
+use lipid::prelude::*;
 use metadata::MetaDataFrame;
 use polars::prelude::*;
 use polars_ext::ExprExt as _;
@@ -37,7 +31,7 @@ impl Computer {
                 };
                 let mut lazy_frame = hash(&key.frames[0].data);
                 for frame in &key.frames[1..] {
-                    lazy_frame = lazy_frame.join( 
+                    lazy_frame = lazy_frame.join(
                         hash(&frame.data),
                         [col("Hash"), col("FattyAcid"), col("Species")],
                         [col("Hash"), col("FattyAcid"), col("Species")],
@@ -50,7 +44,7 @@ impl Computer {
         };
         lazy_frame = lazy_frame.with_columns([
             col("FattyAcid").fa().ecn().alias("EquivalentCarbonNumber"),
-            col("FattyAcid").fa().mass(Rcooh).alias("Mass"),
+            col("FattyAcid").fa().mass(None).alias("Mass"),
             col("FattyAcid").fa().is_saturated().alias("Type"),
             col("FattyAcid")
                 .fa()

@@ -9,10 +9,7 @@ use egui_phosphor::regular::{HASH, MINUS, PLUS};
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
-use lipid::fatty_acid::{
-    FattyAcid,
-    polars::{DataFrameExt as _, SeriesExt as _},
-};
+use lipid::prelude::*;
 use polars::{chunked_array::builder::AnonymousOwnedListBuilder, prelude::*};
 use polars_ext::DataFrameExt as _;
 use std::ops::Range;
@@ -165,7 +162,7 @@ impl TableView<'_> {
                 }
             }
             (row, FA) => {
-                let mut fatty_acid = self.data_frame.fatty_acid().get(row)?;
+                let mut fatty_acid = self.data_frame.fa().get(row)?;
                 let mut inner_response = FattyAcidWidget::new(fatty_acid.as_mut())
                     .editable(self.settings.editable)
                     .hover()
@@ -285,7 +282,7 @@ fn update_fatty_acid(
     value: Option<FattyAcid>,
 ) -> impl FnMut(&Series) -> PolarsResult<Series> + 'static {
     move |series| {
-        let fatty_acid_series = series.fatty_acid();
+        let fatty_acid_series = series.fa();
         let mut carbons = PrimitiveChunkedBuilder::<UInt8Type>::new(
             fatty_acid_series.carbons.name().clone(),
             fatty_acid_series.len(),
@@ -390,7 +387,7 @@ fn change_fatty_acid(
     new: &FattyAcid,
 ) -> impl FnMut(&Series) -> PolarsResult<Series> + '_ {
     move |series| {
-        let fatty_acid_series = series.fatty_acid();
+        let fatty_acid_series = series.fa();
         let mut carbons = PrimitiveChunkedBuilder::<UInt8Type>::new(
             fatty_acid_series.carbons.name().clone(),
             fatty_acid_series.len(),

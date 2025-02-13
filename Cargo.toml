@@ -34,7 +34,7 @@ fluent_content = "0.0.5"
 indexmap = { version = "2.7.1", features = ["serde"] }
 intl-memoizer = "0.5.2"
 itertools = "0.14.0"
-lipid = { git = "https://github.com/ippras/lipid" }
+lipid = { git = "https://github.com/ippras/lipid", features = ["polars"] }
 log = "0.4.25"
 maplit = "1.0.2"
 metadata = { git = "https://github.com/ippras/metadata" }
@@ -74,7 +74,9 @@ polars = { version = "0.46.0", default-features = false, features = [
     # "semi_anti_join",
     # "temporal",
 ] }
-polars-utils = { git = "https://github.com/pola-rs/polars" }
+polars-utils = { git = "https://github.com/pola-rs/polars", rev = "65848bc2ff4bda33809ed8be2517594df5b53d26", features = [
+    "nightly",
+] }
 polars_ext = { git = "https://github.com/kgv/polars_ext" }
 radix_trie = "0.2.1"
 semver = { version = "1.0.25", features = ["serde"] }

@@ -13,7 +13,7 @@ use egui_phosphor::regular::HASH;
 use egui_table::{
     AutoSizeMode, CellInfo, Column, HeaderCellInfo, HeaderRow, Table, TableDelegate, TableState,
 };
-use lipid::fatty_acid::polars::DataFrameExt as _;
+use lipid::prelude::*;
 use polars::prelude::*;
 use std::ops::Range;
 
@@ -248,7 +248,7 @@ impl TableView<'_> {
                 ui.label(label);
             }
             (row, id::FA) => {
-                let mut fatty_acid = self.data_frame.fatty_acid().get(row)?;
+                let mut fatty_acid = self.data_frame.fa().get(row)?;
                 FattyAcidWidget::new(fatty_acid.as_mut()).hover().show(ui);
             }
             (row, experimental::TAG) => {

@@ -365,7 +365,7 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
             match group.composition {
                 MC => col("FattyAcid")
                     .tag()
-                    .mass(lit(settings.confirmed.adduct))
+                    .mass(Some(lit(settings.confirmed.adduct)))
                     .map(
                         column(round(settings.confirmed.round_mass)),
                         GetOutput::same_type(),
@@ -374,21 +374,13 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
                 PMC => col("FattyAcid")
                     .tag()
                     .positional(
-                        |expr| {
-                            expr.fa()
-                                .mass(Kind::Rcooh)
-                                .round(settings.confirmed.round_mass)
-                        },
+                        |expr| expr.fa().mass(None).round(settings.confirmed.round_mass),
                         PermutationOptions::default().map(true),
                     )
                     .alias("PMC"),
                 SMC => col("FattyAcid")
                     .tag()
-                    .map(|expr| {
-                        expr.fa()
-                            .mass(Kind::Rcooh)
-                            .round(settings.confirmed.round_mass)
-                    })
+                    .map(|expr| expr.fa().mass(None).round(settings.confirmed.round_mass))
                     .alias("SMC"),
                 ECNC => col("FattyAcid").tag().ecn().alias("NC"),
                 PECNC => col("FattyAcid")
@@ -633,7 +625,7 @@ fn sort(mut lazy_frame: LazyFrame, settings: &Settings) -> LazyFrame {
 
 // fn sort_by_mass() -> Expr {
 //     col("").sort_by(
-//         [col("").struct_().field_by_name("FA").fa().mass()],
+//         [col("").struct_().field_by_name("FA").fa().mass(None)],
 //         Default::default(),
 //     )
 // }
