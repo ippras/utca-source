@@ -63,7 +63,6 @@ impl Widget for FilterWidget<'_> {
                 UC | PUC | SUC => &self.data_frame["Unsaturation"],
             };
             let column = column.unique()?.sort(Default::default())?;
-            let stereospecificity = self.composition.stereospecificity;
             // Key
             ui.labeled_separator("Key");
             let max_scroll_height = ui.spacing().combo_height;
@@ -71,47 +70,25 @@ impl Widget for FilterWidget<'_> {
                 .resolve(ui.style())
                 .size
                 .max(ui.spacing().interact_size.y);
-            let count = match stereospecificity {
-                None => 1,
-                Some(Stereospecificity::Positional) => 2,
-                Some(Stereospecificity::Stereo) => 3,
-            };
             TableBuilder::new(ui)
                 .auto_shrink(false)
                 .column(Column::auto().auto_size_this_frame(true))
-                .columns(Column::remainder(), count)
+                .columns(Column::remainder(), 3)
                 .max_scroll_height(max_scroll_height)
                 .vscroll(true)
                 .header(height, |mut header| {
                     header.col(|ui| {
                         ui.heading(HASH);
                     });
-                    match stereospecificity {
-                        None => {
-                            header.col(|ui| {
-                                ui.heading("SN-1,2,3");
-                            });
-                        }
-                        Some(Stereospecificity::Positional) => {
-                            header.col(|ui| {
-                                ui.heading("SN-1,3");
-                            });
-                            header.col(|ui| {
-                                ui.heading("SN-2");
-                            });
-                        }
-                        Some(Stereospecificity::Stereo) => {
-                            header.col(|ui| {
-                                ui.heading("SN-1");
-                            });
-                            header.col(|ui| {
-                                ui.heading("SN-2");
-                            });
-                            header.col(|ui| {
-                                ui.heading("SN-3");
-                            });
-                        }
-                    }
+                    header.col(|ui| {
+                        ui.heading("SN-1");
+                    });
+                    header.col(|ui| {
+                        ui.heading("SN-2");
+                    });
+                    header.col(|ui| {
+                        ui.heading("SN-3");
+                    });
                 })
                 .body(|body| {
                     body.rows(height, column.len(), |mut row| {
@@ -120,92 +97,43 @@ impl Widget for FilterWidget<'_> {
                             ui.label(index.to_string());
                         });
                         let mut response = None;
-                        match stereospecificity {
-                            None => {
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
+                        row.col(|ui| {
+                            let value = column.get(index).unwrap();
+                            let contains = self.filter.key.contains(&value);
+                            let mut selected = contains;
+                            response
+                                .insert_or_union(ui.toggle_value(&mut selected, value.str_value()));
+                            if selected && !contains {
+                                self.filter.key.push(value.into_static());
+                            } else if !selected && contains {
+                                self.filter.remove(&value);
                             }
-                            Some(Stereospecificity::Positional) => {
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
+                        });
+                        // self.composition.stereospecificity
+                        row.col(|ui| {
+                            let value = column.get(index).unwrap();
+                            let contains = self.filter.key.contains(&value);
+                            let mut selected = contains;
+                            response
+                                .insert_or_union(ui.toggle_value(&mut selected, value.str_value()));
+                            if selected && !contains {
+                                self.filter.key.push(value.into_static());
+                            } else if !selected && contains {
+                                self.filter.remove(&value);
                             }
-                            Some(Stereospecificity::Stereo) => {
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
-                                row.col(|ui| {
-                                    let value = column.get(index).unwrap();
-                                    let contains = self.filter.key.contains(&value);
-                                    let mut selected = contains;
-                                    response.insert_or_union(
-                                        ui.toggle_value(&mut selected, value.str_value()),
-                                    );
-                                    if selected && !contains {
-                                        self.filter.key.push(value.into_static());
-                                    } else if !selected && contains {
-                                        self.filter.remove(&value);
-                                    }
-                                });
+                        });
+                        row.col(|ui| {
+                            let value = column.get(index).unwrap();
+                            let contains = self.filter.key.contains(&value);
+                            let mut selected = contains;
+                            response
+                                .insert_or_union(ui.toggle_value(&mut selected, value.str_value()));
+                            if selected && !contains {
+                                self.filter.key.push(value.into_static());
+                            } else if !selected && contains {
+                                self.filter.remove(&value);
                             }
-                        }
+                        });
                         response
                             .unwrap_and_union(row.response())
                             .context_menu(|ui| {

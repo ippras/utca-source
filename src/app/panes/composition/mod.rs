@@ -6,7 +6,10 @@ use self::{
 };
 use super::PaneDelegate;
 use crate::app::{
-    computers::{CompositionComputed, CompositionKey, FattyAcidsComputed, FattyAcidsKey},
+    computers::{
+        FattyAcidCompositionComputed, FattyAcidCompositionKey, TriacylglycerolCompositionComputed,
+        TriacylglycerolCompositionKey,
+    },
     text::Text,
 };
 use egui::{CursorIcon, Response, RichText, Ui, Window, util::hash};
@@ -120,8 +123,8 @@ impl Pane {
         self.target = ui.memory_mut(|memory| {
             memory
                 .caches
-                .cache::<CompositionComputed>()
-                .get(CompositionKey {
+                .cache::<TriacylglycerolCompositionComputed>()
+                .get(TriacylglycerolCompositionKey {
                     frames: &self.source,
                     settings: &self.settings,
                 })
@@ -139,13 +142,12 @@ impl Pane {
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| {
                 let data_frame = ui.memory_mut(|memory| {
-                    memory
-                        .caches
-                        .cache::<FattyAcidsComputed>()
-                        .get(FattyAcidsKey {
+                    memory.caches.cache::<FattyAcidCompositionComputed>().get(
+                        FattyAcidCompositionKey {
                             frames: &self.source,
                             settings: &self.settings,
-                        })
+                        },
+                    )
                 });
                 self.settings.show(ui, &data_frame);
                 let enabled = hash(&self.settings.confirmed) != hash(&self.settings.unconfirmed);
