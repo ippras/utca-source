@@ -125,10 +125,7 @@ impl Settings {
                         .response
                         .on_hover_text(group.composition.hover_text());
                     // Filter
-                    ui.add(
-                        FilterWidget::new(&mut group.filter, &group.composition, data_frame)
-                            .percent(self.percent),
-                    );
+                    ui.add(FilterWidget::new(group, data_frame).percent(self.percent));
                 });
                 ui.end_row();
                 index += 1;

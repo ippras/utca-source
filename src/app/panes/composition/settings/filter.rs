@@ -4,30 +4,36 @@ use crate::{
         Composition, ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
     },
 };
-use egui::{Response, Slider, SliderClamping, TextStyle, Ui, Widget, emath::Float as _};
+use ahash::RandomState;
+use egui::{Response, Sense, Slider, SliderClamping, TextStyle, Ui, Widget, emath::Float as _};
 use egui_ext::LabeledSeparator as _;
 use egui_extras::{Column, TableBuilder};
 use egui_l20n::UiExt as _;
 use egui_phosphor::regular::{FUNNEL, FUNNEL_X, HASH};
-use indexmap::IndexMap;
 use lipid::triacylglycerol::Stereospecificity;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::{
+    collections::HashSet,
+    hash::{Hash, Hasher},
+    ops::BitXor,
+};
+
+use super::Group;
 
 const DEFAULT: [bool; 3] = [false; 3];
 
 /// Filter
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Filter {
-    pub key: IndexMap<AnyValue<'static>, [bool; 3]>,
+    pub key: HashSet<AnyValue<'static>>,
     pub value: f64,
 }
 
 impl Filter {
     pub fn new() -> Self {
         Self {
-            key: IndexMap::new(),
+            key: HashSet::new(),
             value: 0.0,
         }
     }
@@ -37,7 +43,13 @@ impl Eq for Filter {}
 
 impl Hash for Filter {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.as_slice().hash(state);
+        state.write_usize(self.key.len());
+        let hash = self
+            .key
+            .iter()
+            .map(|value| RandomState::with_seeds(1, 2, 3, 4).hash_one(value))
+            .fold(0, BitXor::bitxor);
+        state.write_u64(hash);
         self.value.ord().hash(state);
     }
 }
@@ -50,21 +62,15 @@ impl PartialEq for Filter {
 
 /// Filter widget
 pub struct FilterWidget<'a> {
-    filter: &'a mut Filter,
-    composition: &'a Composition,
+    group: &'a mut Group,
     data_frame: &'a DataFrame,
     percent: bool,
 }
 
 impl<'a> FilterWidget<'a> {
-    pub fn new(
-        filter: &'a mut Filter,
-        composition: &'a Composition,
-        data_frame: &'a DataFrame,
-    ) -> Self {
+    pub fn new(group: &'a mut Group, data_frame: &'a DataFrame) -> Self {
         Self {
-            filter,
-            composition,
+            group,
             data_frame,
             percent: false,
         }
@@ -78,7 +84,7 @@ impl<'a> FilterWidget<'a> {
 
 impl Widget for FilterWidget<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let title = if *self.filter == Default::default() {
+        let title = if self.group.filter == Default::default() {
             FUNNEL_X
         } else {
             ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
@@ -87,10 +93,10 @@ impl Widget for FilterWidget<'_> {
         ui.menu_button(title, |ui| -> PolarsResult<()> {
             ui.heading(format!(
                 "{} {}",
-                self.composition.text(),
+                self.group.composition.text(),
                 ui.localize("settings-filter?case=lower"),
             ));
-            let column = match *self.composition {
+            let column = match self.group.composition {
                 ECNC | PECNC | SECNC => &self.data_frame["EquivalentCarbonNumber"],
                 MC | PMC | SMC => &self.data_frame["Mass"],
                 SC | PSC | SSC => &self.data_frame["Species"],
@@ -131,35 +137,44 @@ impl Widget for FilterWidget<'_> {
                         row.col(|ui| {
                             ui.label(index.to_string());
                         });
-                        // match self.composition.stereospecificity {
-                        //     None => todo!(),
-                        //     Some(Stereospecificity::Positional) => todo!(),
-                        //     Some(Stereospecificity::Stereo) => todo!(),
-                        // }
-                        row.col(|ui| {
-                            ui.add(StereospecificNumberWidget {
-                                number: 0,
-                                filter: self.filter,
-                                index,
-                                series,
-                            });
-                        });
-                        row.col(|ui| {
-                            ui.add(StereospecificNumberWidget {
-                                number: 1,
-                                filter: self.filter,
-                                index,
-                                series,
-                            });
-                        });
-                        row.col(|ui| {
-                            ui.add(StereospecificNumberWidget {
-                                number: 2,
-                                filter: self.filter,
-                                index,
-                                series,
-                            });
-                        });
+                        match self.group.composition {
+                            ECNC | MC | UC => {
+                                row.col(|ui| {
+                                    ui.add(StereospecificNumberWidget {
+                                        number: 0,
+                                        group: self.group,
+                                        index,
+                                        series,
+                                    });
+                                });
+                            }
+                            _ => {
+                                row.col(|ui| {
+                                    ui.add(StereospecificNumberWidget {
+                                        number: 0,
+                                        group: self.group,
+                                        index,
+                                        series,
+                                    });
+                                });
+                                row.col(|ui| {
+                                    ui.add(StereospecificNumberWidget {
+                                        number: 1,
+                                        group: self.group,
+                                        index,
+                                        series,
+                                    });
+                                });
+                                row.col(|ui| {
+                                    ui.add(StereospecificNumberWidget {
+                                        number: 2,
+                                        group: self.group,
+                                        index,
+                                        series,
+                                    });
+                                });
+                            }
+                        }
                     });
                 });
             // Value
@@ -167,7 +182,7 @@ impl Widget for FilterWidget<'_> {
             ui.horizontal(|ui| {
                 ui.label("Value");
                 ui.add(
-                    Slider::new(&mut self.filter.value, 0.0..=1.0)
+                    Slider::new(&mut self.group.filter.value, 0.0..=1.0)
                         .clamping(SliderClamping::Always)
                         .logarithmic(true)
                         .custom_formatter(|mut value, _| {
@@ -192,39 +207,77 @@ impl Widget for FilterWidget<'_> {
 }
 
 struct StereospecificNumberWidget<'a> {
-    number: usize,
-    filter: &'a mut Filter,
+    number: Option<usize>,
+    group: &'a mut Group,
     index: usize,
     series: &'a Series,
 }
 
+impl StereospecificNumberWidget<'_> {
+    fn show(self, ui: &mut Ui) -> PolarsResult<Response> {
+        let value = self.series.get(self.index)?;
+        let value = if let Some(number) = self.number {
+            match value {
+                AnyValue::Array(series, length) => {
+                    let t = series.array()?.get_as_series(number).unwrap().get(self.index);
+                }
+                _ => unreachable!(),
+            }
+            // let value = value
+            //     ._iter_struct_av()
+            //     .nth(number)
+            //     .unwrap_or_default()
+            //     .into_static();
+            // let text = value.str_value();
+            // let response = ui.toggle_value(&mut value, text);
+        } else {
+            self.series.get(self.index)?
+        };
+        let text = value.str_value();
+        Ok(ui.allocate_response(Default::default(), Sense::click()))
+    }
+}
+
 impl<'a> Widget for StereospecificNumberWidget<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let key = self.series.get(self.index).unwrap();
-        let text = key.str_value();
-        let value = self
-            .filter
-            .key
-            .entry(key.clone().into_static())
-            .or_insert(DEFAULT);
-        let response = ui.toggle_value(&mut value[self.number], text);
-        response.context_menu(|ui| {
-            if ui.button(format!("{FUNNEL} Select all")).clicked() {
-                for key in self.series.iter() {
-                    let av_values: Vec<_> = key._iter_struct_av().collect();
-                    let value = self.filter.key.entry(key.into_static()).or_default();
-                    value[self.number] = true;
-                }
-                ui.close_menu();
-            }
-            if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
-                for value in self.filter.key.values_mut() {
-                    value[self.number] = false;
-                }
-                ui.close_menu();
-            }
-        });
-        response
+        // let mut value = self.series.get(self.index).unwrap_or_default();
+        // self.group.filter.key.entry(key.into_static()).or_insert();
+        // let value = if let Some(number) = self.number {
+        //     self.series
+        //         .get(self.index)
+        //         .unwrap_or_default()
+        //         ._iter_struct_av()
+        //         .nth(number)
+        //         .clone()
+        //         .unwrap_or_default()
+        // } else {
+        //     self.series.get(self.index).unwrap_or_default()
+        // };
+        // let text = value.str_value();
+        // match self.group.composition.stereospecificity {
+        //     Some(stereospecificity) => todo!(),
+        //     None => todo!(),
+        // }
+
+        // let response = ui.toggle_value(&mut value[self.number], text);
+        // response.context_menu(|ui| {
+        //     if ui.button(format!("{FUNNEL} Select all")).clicked() {
+        //         for key in self.series.iter() {
+        //             let av_values: Vec<_> = key._iter_struct_av().collect();
+        //             let value = self.filter.key.entry(key.into_static()).or_default();
+        //             value[self.number] = true;
+        //         }
+        //         ui.close_menu();
+        //     }
+        //     if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
+        //         for value in self.filter.key.values_mut() {
+        //             value[self.number] = false;
+        //         }
+        //         ui.close_menu();
+        //     }
+        // });
+        // response
+        ui.allocate_response(Default::default(), Sense::click())
     }
 }
 
