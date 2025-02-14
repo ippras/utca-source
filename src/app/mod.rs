@@ -9,19 +9,18 @@ use anyhow::Error;
 use chrono::Local;
 use eframe::{APP_KEY, CreationContext, Storage, get_value, set_value};
 use egui::{
-    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, FontSelection, Frame, Id,
-    LayerId, Layout, Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel,
-    UserAttentionType, ViewportCommand, Visuals, menu::bar, text::LayoutJob, util::IdTypeMap,
-    warn_if_debug_build,
+    Align, Align2, CentralPanel, Color32, Context, FontDefinitions, Frame, Id, LayerId, Layout,
+    Order, RichText, ScrollArea, SidePanel, Sides, TextStyle, TopBottomPanel, Visuals, menu::bar,
+    util::IdTypeMap, warn_if_debug_build,
 };
 use egui_ext::{DroppedFileExt as _, HoveredFileExt, LightDarkButton};
-use egui_l20n::{LanguageIdentifier, Localization, UiExt as _};
+use egui_l20n::UiExt as _;
 use egui_notify::Toasts;
 use egui_phosphor::{
     Variant, add_to_fonts,
     regular::{
         ARROWS_CLOCKWISE, CLOUD_ARROW_DOWN, GEAR, GRID_FOUR, INFO, PLUS, SIDEBAR_SIMPLE,
-        SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABLE, TABS, TRASH,
+        SQUARE_SPLIT_HORIZONTAL, SQUARE_SPLIT_VERTICAL, TABS, TRASH,
     },
 };
 use egui_tiles::{ContainerKind, Tile, Tree};

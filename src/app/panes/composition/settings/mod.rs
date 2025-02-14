@@ -3,9 +3,7 @@ pub(crate) use self::filter::{Filter, FilterWidget};
 use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
-    special::composition::{
-        Composition, EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
-    },
+    special::composition::{COMPOSITIONS, Composition},
 };
 use egui::{
     ComboBox, DragValue, Grid, Key, KeyboardShortcut, Modifiers, RichText, Slider, Ui, emath::Float,
@@ -63,7 +61,7 @@ impl Settings {
             ui.label(ui.localize("settings-sticky_columns"));
             ui.add(Slider::new(
                 &mut self.sticky_columns,
-                0..=self.unconfirmed.groups.len() * 2 + 1,
+                0..=self.unconfirmed.selections.len() * 2 + 1,
             ));
             ui.end_row();
 
@@ -74,58 +72,33 @@ impl Settings {
             // Compose
             ui.label(ui.localize("settings-compose"));
             if ui.button(PLUS).clicked() {
-                self.unconfirmed.groups.push_front(Group::new());
+                self.unconfirmed.selections.push_front(Selection::new());
             }
             ui.end_row();
             let mut index = 0;
-            self.unconfirmed.groups.retain_mut(|group| {
+            self.unconfirmed.selections.retain_mut(|selection| {
                 let mut keep = true;
                 ui.label("");
                 ui.horizontal(|ui| {
                     // Delete
                     keep = !ui.button(MINUS).clicked();
                     ComboBox::from_id_salt(ui.next_auto_id())
-                        .selected_text(group.composition.text())
+                        .selected_text(ui.localize(selection.composition.text()))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut group.composition, EC, EC.text())
-                                .on_hover_text(EC.hover_text());
-                            ui.selectable_value(&mut group.composition, PEC, PEC.text())
-                                .on_hover_text(PEC.hover_text());
-                            ui.selectable_value(&mut group.composition, SEC, SEC.text())
-                                .on_hover_text(SEC.hover_text());
-                            ui.separator();
-                            ui.selectable_value(&mut group.composition, MC, MC.text())
-                                .on_hover_text(MC.hover_text());
-                            ui.selectable_value(&mut group.composition, PMC, PMC.text())
-                                .on_hover_text(PMC.hover_text());
-                            ui.selectable_value(&mut group.composition, SMC, SMC.text())
-                                .on_hover_text(SMC.hover_text());
-                            ui.separator();
-                            ui.selectable_value(&mut group.composition, UC, UC.text())
-                                .on_hover_text(UC.hover_text());
-                            ui.selectable_value(&mut group.composition, PUC, PUC.text())
-                                .on_hover_text(PUC.hover_text());
-                            ui.selectable_value(&mut group.composition, SUC, SUC.text())
-                                .on_hover_text(SUC.hover_text());
-                            ui.separator();
-                            ui.selectable_value(&mut group.composition, TC, TC.text())
-                                .on_hover_text(TC.hover_text());
-                            ui.selectable_value(&mut group.composition, PTC, PTC.text())
-                                .on_hover_text(PTC.hover_text());
-                            ui.selectable_value(&mut group.composition, STC, STC.text())
-                                .on_hover_text(STC.hover_text());
-                            ui.separator();
-                            ui.selectable_value(&mut group.composition, SC, SC.text())
-                                .on_hover_text(SC.hover_text());
-                            ui.selectable_value(&mut group.composition, PSC, PSC.text())
-                                .on_hover_text(PSC.hover_text());
-                            ui.selectable_value(&mut group.composition, SSC, SSC.text())
-                                .on_hover_text(SSC.hover_text());
+                            for composition in COMPOSITIONS {
+                                ui.selectable_value(
+                                    &mut selection.composition,
+                                    composition,
+                                    ui.localize(composition.text()),
+                                )
+                                .on_hover_text(ui.localize(composition.hover_text()));
+                            }
                         })
                         .response
-                        .on_hover_text(group.composition.hover_text());
+                        .on_hover_text(selection.composition.hover_text());
                     // Filter
-                    ui.add(FilterWidget::new(group, data_frame).percent(self.percent));
+                    let series = &data_frame["Keys"].struct_().unwrap().fields_as_series()[index];
+                    ui.add(FilterWidget::new(selection, series).percent(self.percent));
                 });
                 ui.end_row();
                 index += 1;
@@ -297,7 +270,7 @@ impl Settings {
 pub(crate) struct Confirmable {
     pub(crate) adduct: f64,
     pub(crate) ddof: u8,
-    pub(crate) groups: VecDeque<Group>,
+    pub(crate) selections: VecDeque<Selection>,
     pub(crate) join: Join,
     pub(crate) method: Method,
     pub(crate) order: Order,
@@ -311,7 +284,7 @@ impl Confirmable {
         Self {
             adduct: 0.0,
             ddof: 1,
-            groups: VecDeque::new(),
+            selections: VecDeque::new(),
             join: Join::Left,
             method: Method::VanderWal,
             order: Order::Descending,
@@ -332,7 +305,7 @@ impl Hash for Confirmable {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.adduct.ord().hash(state);
         self.ddof.hash(state);
-        self.groups.hash(state);
+        self.selections.hash(state);
         self.join.hash(state);
         self.method.hash(state);
         self.order.hash(state);
@@ -447,14 +420,14 @@ impl Order {
     }
 }
 
-/// Group
+/// Selection
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
-pub(crate) struct Group {
+pub(crate) struct Selection {
     pub(crate) composition: Composition,
     pub(crate) filter: Filter,
 }
 
-impl Group {
+impl Selection {
     pub(crate) fn new() -> Self {
         Self {
             composition: Composition::new(),

@@ -1,126 +1,99 @@
-use lipid::triacylglycerol::Stereospecificity;
+use self::{
+    Composition::*,
+    Stereospecificity::{NonStereospecific, Stereospecific},
+};
 use serde::{Deserialize, Serialize};
 
-pub const MC: Composition = Composition {
-    kind: Kind::Mass,
-    stereospecificity: None,
-    agregation: false,
-};
-pub const PMC: Composition = Composition {
-    kind: Kind::Mass,
-    stereospecificity: Some(Stereospecificity::Positional),
-    agregation: false,
-};
-pub const SMC: Composition = Composition {
-    kind: Kind::Mass,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
-pub const EC: Composition = Composition {
-    kind: Kind::Ecn,
-    stereospecificity: None,
-    agregation: false,
-};
-pub const PEC: Composition = Composition {
-    kind: Kind::Ecn,
-    stereospecificity: Some(Stereospecificity::Positional),
-    agregation: false,
-};
-pub const SEC: Composition = Composition {
-    kind: Kind::Ecn,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
-pub const SC: Composition = Composition {
-    kind: Kind::Species,
-    stereospecificity: None,
-    agregation: false,
-};
-pub const PSC: Composition = Composition {
-    kind: Kind::Species,
-    stereospecificity: Some(Stereospecificity::Positional),
-    agregation: false,
-};
-pub const SSC: Composition = Composition {
-    kind: Kind::Species,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
-pub const TC: Composition = Composition {
-    kind: Kind::Type,
-    stereospecificity: None,
-    agregation: false,
-};
-pub const PTC: Composition = Composition {
-    kind: Kind::Type,
-    stereospecificity: Some(Stereospecificity::Positional),
-    agregation: false,
-};
-pub const STC: Composition = Composition {
-    kind: Kind::Type,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
-pub const UC: Composition = Composition {
-    kind: Kind::Unsaturation,
-    stereospecificity: None,
-    agregation: false,
-};
-pub const PUC: Composition = Composition {
-    kind: Kind::Unsaturation,
-    stereospecificity: Some(Stereospecificity::Positional),
-    agregation: false,
-};
-pub const SUC: Composition = Composition {
-    kind: Kind::Unsaturation,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
+pub const COMPOSITIONS: [Composition; 12] =
+    [MNC, MSC, NNC, NSC, SNC, SPC, SSC, TNC, TPC, TSC, UNC, USC];
 
-pub const UPCA: Union = Union {
-    kind: Kind::Unsaturation,
-    stereospecificity: Some(Stereospecificity::Stereo),
-    agregation: false,
-};
+// Mass composition, non-stereospecific, agregation
+pub const MNC: Composition = Mass(NonStereospecific(Agregation));
+// Mass composition, stereospecific
+pub const MSC: Composition = Mass(Stereospecific);
 
-/// Union
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Union {
-    pub kind: Kind,
-    pub stereospecificity: Option<Stereospecificity>,
-    pub agregation: bool,
-}
+// Equivalent carbon number composition, non-stereospecific, agregation
+pub const NNC: Composition = EquivalentCarbonNumber(NonStereospecific(Agregation));
+// Equivalent carbon number composition, stereospecific
+pub const NSC: Composition = EquivalentCarbonNumber(Stereospecific);
+
+// Species composition, non-stereospecific, permutation
+pub const SNC: Composition = Species(NonStereospecific(Permutation { positional: false }));
+// Species composition, non-stereospecific, permutation, positional
+pub const SPC: Composition = Species(NonStereospecific(Permutation { positional: true }));
+// Species composition, stereospecific
+pub const SSC: Composition = Species(Stereospecific);
+
+// Type composition, non-stereospecific, permutation
+pub const TNC: Composition = Type(NonStereospecific(Permutation { positional: false }));
+// Type composition, non-stereospecific, permutation, positional
+pub const TPC: Composition = Type(NonStereospecific(Permutation { positional: true }));
+// Type composition, stereospecific
+pub const TSC: Composition = Type(Stereospecific);
+
+// Unsaturation composition, non-stereospecific, agregation
+pub const UNC: Composition = Unsaturation(NonStereospecific(Agregation));
+// Unsaturation composition, stereospecific
+pub const USC: Composition = Unsaturation(Stereospecific);
 
 /// Composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub struct Composition {
-    pub kind: Kind,
-    pub agregation: bool,
-    pub stereospecificity: Option<Stereospecificity>,
+pub enum Composition {
+    EquivalentCarbonNumber(Stereospecificity<Agregation>),
+    Mass(Stereospecificity<Agregation>),
+    Species(Stereospecificity<Permutation>),
+    Type(Stereospecificity<Permutation>),
+    Unsaturation(Stereospecificity<Agregation>),
 }
 
 impl Composition {
-    pub const fn new() -> Self {
-        Self {
-            kind: Kind::Species,
-            agregation: false,
-            stereospecificity: Some(Stereospecificity::Positional),
-        }
+    pub fn new() -> Self {
+        SSC
     }
 }
 
-impl Default for Composition {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// /// Numeric
+// pub enum Numeric {
+//     Agregation(Stereospecificity<Agregation>),
+//     Permutation(Stereospecificity<Permutation>),
+// }
 
-/// Composition kind
+/// Stereospecificity
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-pub enum Kind {
-    Ecn,
-    Mass,
-    Species,
-    Type,
-    Unsaturation,
+pub enum Stereospecificity<T> {
+    Stereospecific,
+    NonStereospecific(T),
 }
+
+/// Agregation
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Agregation;
+
+/// Permutation
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Permutation {
+    pub positional: bool,
+}
+
+// Composition
+// 1. Ecn(Option<Agregation>)
+// • EA
+// 2. Mass(Option<Agregation>)
+// • MA
+// 3. Unsaturation(Option<Agregation>)
+// • UA
+// 4. Species(Permutation)
+// • SC
+// • PSC
+// • SSC
+// 5. Type(Permutation)
+// • TC
+// • PTC
+// • STC
+
+// type Permutation = Option<Stereospecificity>;
+// Operation:
+// Permutation {
+//     stereospecificity: Option<Stereospecificity>,
+// }
+// * Agregation

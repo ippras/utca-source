@@ -1,27 +1,29 @@
+use super::Selection;
 use crate::{
     app::text::Text,
     special::composition::{
-        Composition, EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
+        Composition, MNC, MSC, NNC, NSC, SNC, SPC, SSC, TNC, TPC, TSC, UNC, USC,
     },
 };
 use ahash::RandomState;
-use egui::{Response, Sense, Slider, SliderClamping, TextStyle, Ui, Widget, emath::Float as _};
+use egui::{
+    CentralPanel, Response, ScrollArea, Sense, Slider, SliderClamping, TextStyle, TopBottomPanel,
+    Ui, Widget, emath::Float as _,
+};
 use egui_ext::LabeledSeparator as _;
 use egui_extras::{Column, TableBuilder};
 use egui_l20n::UiExt as _;
 use egui_phosphor::regular::{FUNNEL, FUNNEL_X, HASH};
 use lipid::triacylglycerol::Stereospecificity;
 use polars::prelude::*;
+use re_ui::UiExt as _;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
     ops::BitXor,
 };
-
-use super::Group;
-
-const DEFAULT: [bool; 3] = [false; 3];
+use tracing::error;
 
 /// Filter
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -62,16 +64,16 @@ impl PartialEq for Filter {
 
 /// Filter widget
 pub struct FilterWidget<'a> {
-    group: &'a mut Group,
-    data_frame: &'a DataFrame,
+    selection: &'a mut Selection,
+    series: &'a Series,
     percent: bool,
 }
 
 impl<'a> FilterWidget<'a> {
-    pub fn new(group: &'a mut Group, data_frame: &'a DataFrame) -> Self {
+    pub fn new(selection: &'a mut Selection, series: &'a Series) -> Self {
         Self {
-            group,
-            data_frame,
+            selection,
+            series,
             percent: false,
         }
     }
@@ -84,7 +86,7 @@ impl<'a> FilterWidget<'a> {
 
 impl Widget for FilterWidget<'_> {
     fn ui(self, ui: &mut Ui) -> Response {
-        let title = if self.group.filter == Default::default() {
+        let title = if self.selection.filter == Default::default() {
             FUNNEL_X
         } else {
             ui.visuals_mut().widgets.inactive = ui.visuals().widgets.active;
@@ -93,96 +95,43 @@ impl Widget for FilterWidget<'_> {
         ui.menu_button(title, |ui| -> PolarsResult<()> {
             ui.heading(format!(
                 "{} {}",
-                self.group.composition.text(),
+                ui.localize(self.selection.composition.text()),
                 ui.localize("settings-filter?case=lower"),
             ));
-            let column = match self.group.composition {
-                EC | PEC | SEC => &self.data_frame["EquivalentCarbonNumber"],
-                MC | PMC | SMC => &self.data_frame["Mass"],
-                SC | PSC | SSC => &self.data_frame["Species"],
-                TC | PTC | STC => &self.data_frame["Type"],
-                UC | PUC | SUC => &self.data_frame["Unsaturation"],
-            };
-            let column = column.unique()?.sort(Default::default())?;
-            let series = column.as_materialized_series();
             // Key
             ui.labeled_separator("Key");
-            let max_scroll_height = ui.spacing().combo_height;
-            let height = TextStyle::Body
-                .resolve(ui.style())
-                .size
-                .max(ui.spacing().interact_size.y);
-            TableBuilder::new(ui)
-                .column(Column::auto().auto_size_this_frame(true))
-                .columns(Column::remainder(), 3)
-                .max_scroll_height(max_scroll_height)
-                .vscroll(true)
-                .header(height, |mut header| {
-                    header.col(|ui| {
-                        ui.heading(HASH);
-                    });
-                    header.col(|ui| {
-                        ui.heading("SN-1");
-                    });
-                    header.col(|ui| {
-                        ui.heading("SN-2");
-                    });
-                    header.col(|ui| {
-                        ui.heading("SN-3");
-                    });
-                })
-                .body(|body| {
-                    body.rows(height, column.len(), |mut row| {
-                        let index = row.index();
-                        row.col(|ui| {
-                            ui.label(index.to_string());
-                        });
-                        match self.group.composition {
-                            EC | MC | UC => {
-                                row.col(|ui| {
-                                    ui.add(StereospecificNumberWidget {
-                                        number: 0,
-                                        group: self.group,
-                                        index,
-                                        series,
-                                    });
-                                });
-                            }
-                            _ => {
-                                row.col(|ui| {
-                                    ui.add(StereospecificNumberWidget {
-                                        number: 0,
-                                        group: self.group,
-                                        index,
-                                        series,
-                                    });
-                                });
-                                row.col(|ui| {
-                                    ui.add(StereospecificNumberWidget {
-                                        number: 1,
-                                        group: self.group,
-                                        index,
-                                        series,
-                                    });
-                                });
-                                row.col(|ui| {
-                                    ui.add(StereospecificNumberWidget {
-                                        number: 2,
-                                        group: self.group,
-                                        index,
-                                        series,
-                                    });
-                                });
-                            }
-                        }
-                    });
+            let series = |index| -> PolarsResult<Series> {
+                let series = if let Some(r#struct) = self.series.try_struct() {
+                    &r#struct.fields_as_series()[index]
+                } else {
+                    self.series
+                };
+                Ok(series.unique()?.sort(Default::default())?)
+            };
+            ui.columns_const(|ui: &mut [Ui; 3]| -> PolarsResult<()> {
+                ui[0].add(ColumnWidget1 {
+                    header: "sn1",
+                    selection: self.selection,
+                    series: series(0)?,
                 });
+                ui[1].add(ColumnWidget1 {
+                    header: "sn2",
+                    selection: self.selection,
+                    series: series(1)?,
+                });
+                ui[2].add(ColumnWidget1 {
+                    header: "sn3",
+                    selection: self.selection,
+                    series: series(2)?,
+                });
+                Ok(())
+            })?;
             // Value
             ui.separator();
             ui.horizontal(|ui| {
                 ui.label("Value");
                 ui.add(
-                    Slider::new(&mut self.group.filter.value, 0.0..=1.0)
+                    Slider::new(&mut self.selection.filter.value, 0.0..=1.0)
                         .clamping(SliderClamping::Always)
                         .logarithmic(true)
                         .custom_formatter(|mut value, _| {
@@ -206,97 +155,161 @@ impl Widget for FilterWidget<'_> {
     }
 }
 
-struct StereospecificNumberWidget<'a> {
-    number: Option<usize>,
-    group: &'a mut Group,
-    index: usize,
-    series: &'a Series,
+struct ColumnWidget1<'a> {
+    header: &'a str,
+    selection: &'a mut Selection,
+    series: Series,
 }
 
-impl StereospecificNumberWidget<'_> {
-    fn show(self, ui: &mut Ui) -> PolarsResult<Response> {
-        let value = self.series.get(self.index)?;
-        let value = if let Some(number) = self.number {
-            match value {
-                AnyValue::Array(series, length) => {
-                    let t = series.array()?.get_as_series(number).unwrap().get(self.index);
-                }
-                _ => unreachable!(),
-            }
-            // let value = value
-            //     ._iter_struct_av()
-            //     .nth(number)
-            //     .unwrap_or_default()
-            //     .into_static();
-            // let text = value.str_value();
-            // let response = ui.toggle_value(&mut value, text);
-        } else {
-            self.series.get(self.index)?
-        };
-        let text = value.str_value();
-        Ok(ui.allocate_response(Default::default(), Sense::click()))
-    }
-}
-
-impl<'a> Widget for StereospecificNumberWidget<'a> {
+impl<'a> Widget for ColumnWidget1<'a> {
     fn ui(self, ui: &mut Ui) -> Response {
-        // let mut value = self.series.get(self.index).unwrap_or_default();
-        // self.group.filter.key.entry(key.into_static()).or_insert();
-        // let value = if let Some(number) = self.number {
-        //     self.series
-        //         .get(self.index)
-        //         .unwrap_or_default()
-        //         ._iter_struct_av()
-        //         .nth(number)
-        //         .clone()
-        //         .unwrap_or_default()
-        // } else {
-        //     self.series.get(self.index).unwrap_or_default()
-        // };
-        // let text = value.str_value();
-        // match self.group.composition.stereospecificity {
-        //     Some(stereospecificity) => todo!(),
-        //     None => todo!(),
-        // }
-
-        // let response = ui.toggle_value(&mut value[self.number], text);
-        // response.context_menu(|ui| {
-        //     if ui.button(format!("{FUNNEL} Select all")).clicked() {
-        //         for key in self.series.iter() {
-        //             let av_values: Vec<_> = key._iter_struct_av().collect();
-        //             let value = self.filter.key.entry(key.into_static()).or_default();
-        //             value[self.number] = true;
-        //         }
-        //         ui.close_menu();
-        //     }
-        //     if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
-        //         for value in self.filter.key.values_mut() {
-        //             value[self.number] = false;
-        //         }
-        //         ui.close_menu();
-        //     }
-        // });
-        // response
-        ui.allocate_response(Default::default(), Sense::click())
-    }
-}
-
-/// Extension methods for [`Response`]
-trait ResponseExt {
-    fn or_union(&mut self, other: Response);
-
-    fn unwrap_and_union(self, other: Response) -> Response;
-}
-
-impl ResponseExt for Option<Response> {
-    fn or_union(&mut self, other: Response) {
-        *self = Some(self.take().unwrap_and_union(other));
-    }
-
-    fn unwrap_and_union(self, other: Response) -> Response {
-        match self {
-            Some(outer_response) => outer_response | other,
-            None => other,
+        ui.heading(self.header);
+        ui.separator();
+        let max_scroll_height = ui.spacing().combo_height;
+        let height = TextStyle::Body
+            .resolve(ui.style())
+            .size
+            .max(ui.spacing().interact_size.y);
+        if let Err(error) = ScrollArea::vertical()
+            .id_salt(ui.next_auto_id())
+            .max_height(max_scroll_height)
+            .show_rows(
+                ui,
+                height,
+                self.series.len(),
+                |ui, range| -> PolarsResult<()> {
+                    for index in range {
+                        let value = self.series.get(index)?.into_static();
+                        let text = value.str_value();
+                        let contains = self.selection.filter.key.contains(&value);
+                        println!("contains: {value} {contains}");
+                        let mut selected = contains;
+                        let response = ui.toggle_value(&mut selected, text);
+                        if selected && !contains {
+                            println!("selected value: {value}");
+                            println!("self.selection.filter.key: {:?}", self.selection.filter.key);
+                            self.selection.filter.key.insert(value);
+                        } else if !selected && contains {
+                            println!("!selected value: {value}");
+                            self.selection.filter.key.remove(&value);
+                        }
+                        response.context_menu(|ui| {
+                            if ui.button(format!("{FUNNEL} Select all")).clicked() {
+                                for key in self.series.iter() {
+                                    self.selection
+                                        .filter
+                                        .key
+                                        .entry(key.into_static())
+                                        .or_insert();
+                                }
+                                ui.close_menu();
+                            }
+                            if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
+                                self.selection.filter.key.clear();
+                                ui.close_menu();
+                            }
+                        });
+                    }
+                    Ok(())
+                },
+            )
+            .inner
+        {
+            error!(%error);
+            ui.error_with_details_on_hover(error.to_string());
         }
+        ui.allocate_response(Default::default(), Sense::hover())
     }
 }
+
+struct ColumnWidget<'a> {
+    header: &'a str,
+    selection: &'a mut Selection,
+    series: Series,
+}
+
+impl<'a> Widget for ColumnWidget<'a> {
+    fn ui(self, ui: &mut Ui) -> Response {
+        let max_scroll_height = ui.spacing().combo_height;
+        let height = TextStyle::Body
+            .resolve(ui.style())
+            .size
+            .max(ui.spacing().interact_size.y);
+        let id_salt = ui.next_auto_id();
+        TableBuilder::new(ui)
+            .id_salt(id_salt)
+            .columns(Column::remainder(), 2)
+            .max_scroll_height(max_scroll_height)
+            .vscroll(true)
+            .header(height, |mut header| {
+                header.col(|ui| {
+                    ui.heading(HASH);
+                });
+                header.col(|ui| {
+                    ui.heading(self.header);
+                });
+            })
+            .body(|body| {
+                body.rows(height, self.series.len(), |mut row| {
+                    let index = row.index();
+                    row.col(|ui| {
+                        ui.label(index.to_string());
+                    });
+                    row.col(|ui| match self.series.get(index) {
+                        Ok(value) => {
+                            let text = value.str_value();
+                            let contains = self.selection.filter.key.contains(&value);
+                            let mut selected = contains;
+                            let response = ui.toggle_value(&mut selected, text);
+                            if selected && !contains {
+                                self.selection.filter.key.insert(value.into_static());
+                            } else if !selected && contains {
+                                self.selection.filter.key.remove(&value.into_static());
+                            }
+                            response.context_menu(|ui| {
+                                if ui.button(format!("{FUNNEL} Select all")).clicked() {
+                                    for key in self.series.iter() {
+                                        self.selection
+                                            .filter
+                                            .key
+                                            .entry(key.into_static())
+                                            .or_insert();
+                                    }
+                                    ui.close_menu();
+                                }
+                                if ui.button(format!("{FUNNEL_X} Unselect all")).clicked() {
+                                    self.selection.filter.key.clear();
+                                    ui.close_menu();
+                                }
+                            });
+                        }
+                        Err(error) => {
+                            error!(%error);
+                            ui.error_with_details_on_hover(error.to_string());
+                        }
+                    });
+                });
+            });
+        ui.allocate_response(Default::default(), Sense::hover())
+    }
+}
+
+// /// Extension methods for [`Response`]
+// trait ResponseExt {
+//     fn or_union(&mut self, other: Response);
+
+//     fn unwrap_and_union(self, other: Response) -> Response;
+// }
+
+// impl ResponseExt for Option<Response> {
+//     fn or_union(&mut self, other: Response) {
+//         *self = Some(self.take().unwrap_and_union(other));
+//     }
+
+//     fn unwrap_and_union(self, other: Response) -> Response {
+//         match self {
+//             Some(outer_response) => outer_response | other,
+//             None => other,
+//         }
+//     }
+// }

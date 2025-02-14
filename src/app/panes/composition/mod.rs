@@ -141,15 +141,15 @@ impl Pane {
             .default_pos(ui.next_widget_position())
             .open(&mut self.state.open_settings_window)
             .show(ui.ctx(), |ui| {
-                let data_frame = ui.memory_mut(|memory| {
-                    memory.caches.cache::<FattyAcidCompositionComputed>().get(
-                        FattyAcidCompositionKey {
-                            frames: &self.source,
-                            settings: &self.settings,
-                        },
-                    )
-                });
-                self.settings.show(ui, &data_frame);
+                // let data_frame = ui.memory_mut(|memory| {
+                //     memory.caches.cache::<FattyAcidCompositionComputed>().get(
+                //         FattyAcidCompositionKey {
+                //             frames: &self.source,
+                //             settings: &self.settings,
+                //         },
+                //     )
+                // });
+                self.settings.show(ui, &self.target);
                 let enabled = hash(&self.settings.confirmed) != hash(&self.settings.unconfirmed);
                 ui.add_enabled_ui(enabled, |ui| {
                     ui.horizontal(|ui| {

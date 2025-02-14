@@ -1,9 +1,7 @@
 use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
-    special::composition::{
-        EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
-    },
+    special::composition::{MNC, MSC, NNC, NSC, SNC, SPC, SSC, TNC, TPC, TSC, UNC, USC},
     utils::polars::{tag_map, r#type},
 };
 use egui::{Frame, Id, Margin, TextStyle, Ui};
@@ -52,7 +50,7 @@ impl TableView<'_> {
         }
         let height = ui.text_style_height(&TextStyle::Heading);
         let num_rows = self.data_frame.height() as u64 + 1;
-        let num_columns = self.settings.confirmed.groups.len() * 2 + 1;
+        let num_columns = self.settings.confirmed.selections.len() * 2 + 1;
         let top = vec![0..1, 1..num_columns];
         let mut middle = vec![0..1];
         const STEP: usize = 2;
@@ -95,9 +93,9 @@ impl TableView<'_> {
             (1, column) => {
                 if column.start % 2 == 1 {
                     let index = column.start / 2;
-                    let composition = self.settings.confirmed.groups[index].composition;
-                    ui.heading(composition.text())
-                        .on_hover_text(composition.hover_text());
+                    let composition = self.settings.confirmed.selections[index].composition;
+                    ui.heading(ui.localize(composition.text()))
+                        .on_hover_text(ui.localize(composition.hover_text()));
                 } else if column.start != 0 {
                     ui.heading("Value");
                 }
@@ -144,21 +142,39 @@ impl TableView<'_> {
                 if column.start % 2 == 1 {
                     let keys = self.data_frame["Keys"].struct_()?;
                     let key = &keys.fields_as_series()[index];
-                    match self.settings.confirmed.groups[index].composition {
-                        MC => {
+                    match self.settings.confirmed.selections[index].composition {
+                        MNC => {
                             FloatWidget::new(|| Ok(key.f64()?.get(row)))
                                 .precision(Some(self.settings.precision))
                                 .hover()
                                 .show(ui);
                         }
-                        PMC | SMC => {
+                        MSC => {
                             let key = tag_map(round(self.settings.precision as _))(key)?;
                             ui.label(key.str_value(row)?);
                         }
-                        EC | PEC | SEC => {
+                        NNC | NSC => {
                             ui.label(key.str_value(row)?);
                         }
-                        TC | PTC | STC => {
+                        SNC | SPC | SSC => {
+                            let sn1 = key
+                                .struct_()?
+                                .field_by_name("StereospecificNumber1")?
+                                .str_value(row)?
+                                .to_string();
+                            let sn2 = key
+                                .struct_()?
+                                .field_by_name("StereospecificNumber2")?
+                                .str_value(row)?
+                                .to_string();
+                            let sn3 = key
+                                .struct_()?
+                                .field_by_name("StereospecificNumber3")?
+                                .str_value(row)?
+                                .to_string();
+                            ui.label(format!("{{{sn1},{sn2},{sn3}}}"));
+                        }
+                        TNC | TPC | TSC => {
                             let r#type = tag_map(r#type)(key)?;
                             let sn1 = r#type
                                 .struct_()?
@@ -177,25 +193,7 @@ impl TableView<'_> {
                                 .to_string();
                             ui.label(format!("{{{sn1},{sn2},{sn3}}}"));
                         }
-                        SC | PSC | SSC => {
-                            let sn1 = key
-                                .struct_()?
-                                .field_by_name("StereospecificNumber1")?
-                                .str_value(row)?
-                                .to_string();
-                            let sn2 = key
-                                .struct_()?
-                                .field_by_name("StereospecificNumber2")?
-                                .str_value(row)?
-                                .to_string();
-                            let sn3 = key
-                                .struct_()?
-                                .field_by_name("StereospecificNumber3")?
-                                .str_value(row)?
-                                .to_string();
-                            ui.label(format!("{{{sn1},{sn2},{sn3}}}"));
-                        }
-                        UC | PUC | SUC => {
+                        UNC | USC => {
                             ui.label(key.str_value(row)?);
                         }
                     }
@@ -215,12 +213,12 @@ impl TableView<'_> {
 
     fn footer_cell_content_ui(&mut self, ui: &mut Ui, column: Range<usize>) -> PolarsResult<()> {
         // Last column
-        if column.start == self.settings.confirmed.groups.len() * 2 {
+        if column.start == self.settings.confirmed.selections.len() * 2 {
             self.value(
                 ui,
                 self.data_frame["Values"].as_materialized_series(),
                 None,
-                self.settings.confirmed.groups.len() - 1,
+                self.settings.confirmed.selections.len() - 1,
                 self.settings.percent,
             )?;
         }

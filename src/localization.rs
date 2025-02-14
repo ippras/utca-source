@@ -36,6 +36,7 @@ mod sources {
 
     pub(super) const EN: &[&str] = &[
         source!("/ftl/en/fatty_acids/byrdwell.com.ftl"),
+        source!("/ftl/en/compositions.ftl"),
         source!("/ftl/en/headers.ftl"),
         source!("/ftl/en/menu.ftl"),
         source!("/ftl/en/names.ftl"),
