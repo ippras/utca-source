@@ -1,7 +1,7 @@
 use crate::{
     app::text::Text,
     special::composition::{
-        Composition, ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+        Composition, EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
     },
 };
 use ahash::RandomState;
@@ -97,7 +97,7 @@ impl Widget for FilterWidget<'_> {
                 ui.localize("settings-filter?case=lower"),
             ));
             let column = match self.group.composition {
-                ECNC | PECNC | SECNC => &self.data_frame["EquivalentCarbonNumber"],
+                EC | PEC | SEC => &self.data_frame["EquivalentCarbonNumber"],
                 MC | PMC | SMC => &self.data_frame["Mass"],
                 SC | PSC | SSC => &self.data_frame["Species"],
                 TC | PTC | STC => &self.data_frame["Type"],
@@ -138,7 +138,7 @@ impl Widget for FilterWidget<'_> {
                             ui.label(index.to_string());
                         });
                         match self.group.composition {
-                            ECNC | MC | UC => {
+                            EC | MC | UC => {
                                 row.col(|ui| {
                                     ui.add(StereospecificNumberWidget {
                                         number: 0,

@@ -2,7 +2,7 @@ use super::{ID_SOURCE, Settings, State};
 use crate::{
     app::{ResultExt, panes::MARGIN, text::Text, widgets::FloatWidget},
     special::composition::{
-        ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+        EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
     },
     utils::polars::{tag_map, r#type},
 };
@@ -155,7 +155,7 @@ impl TableView<'_> {
                             let key = tag_map(round(self.settings.precision as _))(key)?;
                             ui.label(key.str_value(row)?);
                         }
-                        ECNC | PECNC | SECNC => {
+                        EC | PEC | SEC => {
                             ui.label(key.str_value(row)?);
                         }
                         TC | PTC | STC => {

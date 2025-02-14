@@ -2,78 +2,109 @@ use lipid::triacylglycerol::Stereospecificity;
 use serde::{Deserialize, Serialize};
 
 pub const MC: Composition = Composition {
-    stereospecificity: None,
     kind: Kind::Mass,
+    stereospecificity: None,
+    agregation: false,
 };
 pub const PMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
     kind: Kind::Mass,
+    stereospecificity: Some(Stereospecificity::Positional),
+    agregation: false,
 };
 pub const SMC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Mass,
-};
-pub const ECNC: Composition = Composition {
-    stereospecificity: None,
-    kind: Kind::Ecn,
-};
-pub const PECNC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
-    kind: Kind::Ecn,
-};
-pub const SECNC: Composition = Composition {
     stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
+};
+pub const EC: Composition = Composition {
     kind: Kind::Ecn,
+    stereospecificity: None,
+    agregation: false,
+};
+pub const PEC: Composition = Composition {
+    kind: Kind::Ecn,
+    stereospecificity: Some(Stereospecificity::Positional),
+    agregation: false,
+};
+pub const SEC: Composition = Composition {
+    kind: Kind::Ecn,
+    stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
 };
 pub const SC: Composition = Composition {
-    stereospecificity: None,
     kind: Kind::Species,
+    stereospecificity: None,
+    agregation: false,
 };
 pub const PSC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
     kind: Kind::Species,
+    stereospecificity: Some(Stereospecificity::Positional),
+    agregation: false,
 };
 pub const SSC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Species,
+    stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
 };
 pub const TC: Composition = Composition {
-    stereospecificity: None,
     kind: Kind::Type,
+    stereospecificity: None,
+    agregation: false,
 };
 pub const PTC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
     kind: Kind::Type,
+    stereospecificity: Some(Stereospecificity::Positional),
+    agregation: false,
 };
 pub const STC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Type,
+    stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
 };
 pub const UC: Composition = Composition {
-    stereospecificity: None,
     kind: Kind::Unsaturation,
+    stereospecificity: None,
+    agregation: false,
 };
 pub const PUC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Positional),
     kind: Kind::Unsaturation,
+    stereospecificity: Some(Stereospecificity::Positional),
+    agregation: false,
 };
 pub const SUC: Composition = Composition {
-    stereospecificity: Some(Stereospecificity::Stereo),
     kind: Kind::Unsaturation,
+    stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
 };
+
+pub const UPCA: Union = Union {
+    kind: Kind::Unsaturation,
+    stereospecificity: Some(Stereospecificity::Stereo),
+    agregation: false,
+};
+
+/// Union
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct Union {
+    pub kind: Kind,
+    pub stereospecificity: Option<Stereospecificity>,
+    pub agregation: bool,
+}
 
 /// Composition
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Composition {
     pub kind: Kind,
+    pub agregation: bool,
     pub stereospecificity: Option<Stereospecificity>,
 }
 
 impl Composition {
     pub const fn new() -> Self {
         Self {
-            stereospecificity: Some(Stereospecificity::Positional),
             kind: Kind::Species,
+            agregation: false,
+            stereospecificity: Some(Stereospecificity::Positional),
         }
     }
 }

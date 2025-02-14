@@ -1,7 +1,7 @@
 use crate::{
     app::panes::composition::settings::{Filter, Group, Method, Order, Settings, Sort},
     special::composition::{
-        ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+        EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
     },
 };
 use egui::util::cache::{ComputerMut, FrameCache};
@@ -382,15 +382,15 @@ fn compose(mut lazy_frame: LazyFrame, settings: &Settings) -> PolarsResult<LazyF
                     .tag()
                     .map(|expr| expr.fa().mass(None).round(settings.confirmed.round_mass))
                     .alias("SMC"),
-                ECNC => col("FattyAcid").tag().ecn().alias("NC"),
-                PECNC => col("FattyAcid")
+                EC => col("FattyAcid").tag().ecn().alias("NC"),
+                PEC => col("FattyAcid")
                     .tag()
                     .positional(
                         |expr| expr.fa().ecn(),
                         PermutationOptions::default().map(true),
                     )
                     .alias("PNC"),
-                SECNC => col("FattyAcid")
+                SEC => col("FattyAcid")
                     .tag()
                     .map(|expr| expr.fa().ecn())
                     .alias("SNC"),

@@ -4,7 +4,7 @@ use crate::{
     app::{MAX_PRECISION, text::Text},
     r#const::relative_atomic_mass::{H, LI, NA, NH4},
     special::composition::{
-        Composition, ECNC, MC, PECNC, PMC, PSC, PTC, PUC, SC, SECNC, SMC, SSC, STC, SUC, TC, UC,
+        Composition, EC, MC, PEC, PMC, PSC, PTC, PUC, SC, SEC, SMC, SSC, STC, SUC, TC, UC,
     },
 };
 use egui::{
@@ -87,12 +87,12 @@ impl Settings {
                     ComboBox::from_id_salt(ui.next_auto_id())
                         .selected_text(group.composition.text())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut group.composition, ECNC, ECNC.text())
-                                .on_hover_text(ECNC.hover_text());
-                            ui.selectable_value(&mut group.composition, PECNC, PECNC.text())
-                                .on_hover_text(PECNC.hover_text());
-                            ui.selectable_value(&mut group.composition, SECNC, SECNC.text())
-                                .on_hover_text(SECNC.hover_text());
+                            ui.selectable_value(&mut group.composition, EC, EC.text())
+                                .on_hover_text(EC.hover_text());
+                            ui.selectable_value(&mut group.composition, PEC, PEC.text())
+                                .on_hover_text(PEC.hover_text());
+                            ui.selectable_value(&mut group.composition, SEC, SEC.text())
+                                .on_hover_text(SEC.hover_text());
                             ui.separator();
                             ui.selectable_value(&mut group.composition, MC, MC.text())
                                 .on_hover_text(MC.hover_text());

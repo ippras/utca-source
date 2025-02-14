@@ -1,5 +1,5 @@
 use super::{ID_SOURCE, Settings, State};
-use crate::special::composition::{MC, ECNC, PMC, UC};
+use crate::special::composition::{MC, EC, PMC, UC};
 use egui::{Align2, Color32, Id, Ui, Vec2b};
 use egui_plot::{AxisHints, Bar, BarChart, Line, Plot, PlotPoints};
 use polars::prelude::*;
@@ -57,7 +57,7 @@ impl PlotView<'_> {
                 let key = keys.str_value(row)?;
                 let x = match self.settings.confirmed.groups[index].composition {
                     MC => keys.f64()?.get(row).unwrap(),
-                    ECNC => keys.i64()?.get(row).unwrap() as _,
+                    EC => keys.i64()?.get(row).unwrap() as _,
                     UC => keys.i64()?.get(row).unwrap() as _,
                     _ => indices.u32()?.get(row).unwrap() as _,
                 };

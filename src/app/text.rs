@@ -1,5 +1,5 @@
 use crate::special::composition::{
-    Composition, Kind, MC, ECNC, PMC, PECNC, PSC, PTC, PUC, SC, SMC, SECNC, SSC, STC, SUC, TC, UC,
+    Composition, Kind, MC, EC, PMC, PEC, PSC, PTC, PUC, SC, SMC, SEC, SSC, STC, SUC, TC, UC,
 };
 
 // Text
@@ -12,9 +12,9 @@ pub trait Text {
 impl Text for Composition {
     fn text(&self) -> &'static str {
         match *self {
-            ECNC => "NC",
-            PECNC => "PNC",
-            SECNC => "SNC",
+            EC => "NC",
+            PEC => "PNC",
+            SEC => "SNC",
 
             MC => "MC",
             PMC => "PMC",
@@ -36,9 +36,9 @@ impl Text for Composition {
 
     fn hover_text(&self) -> &'static str {
         match *self {
-            ECNC => "Equivalent carbon number composition",
-            PECNC => "Positional equivalent carbon number composition",
-            SECNC => "Stereo equivalent carbon number composition",
+            EC => "Equivalent carbon number composition",
+            PEC => "Positional equivalent carbon number composition",
+            SEC => "Stereo equivalent carbon number composition",
 
             MC => "Mass composition",
             PMC => "Positional mass composition",
